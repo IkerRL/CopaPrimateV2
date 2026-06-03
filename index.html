@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Copa Primate - Vol. I</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="noise-overlay"></div>
+<div class="omen-bg">
+    <div class="bg-energy-core"></div>
+    <div class="logo-glow"></div>
+    <div class="vignette"></div>
+</div>
+<header class="main-header">
+    <div class="header-content">
+        <h1 class="titulo-principal">COPA PRIMATE</h1>
+        <div class="vol-row">
+            <img src="monito-der.png" class="sticker-monkey btn-sonido" title="¡Haz clic!">
+            <h2 class="vol-text">VOL. I</h2>
+            <img src="monito-izq.png" class="sticker-monkey btn-sonido" title="¡Haz clic!">
+        </div>
+    </div>
+</header>
+<main class="main-content">
+    <section class="grid-equipos" id="container-equipos"></section>
+    <footer class="footer-controls">
+        <button class="btn-valorant" id="btn-fase-grupos"><span class="btn-content">GRUPOS</span></button>
+        <button class="btn-valorant" id="btn-playoffs" style="display: none; margin-left: 20px;"><span class="btn-content">FASE FINAL</span></button>
+    </footer>
+</main>
+<div class="team-modal" id="teamModal"><div class="team-modal-card" id="teamModalCard"></div></div>
+<audio id="audioMono" src="sonido.mp3"></audio>
+<audio id="audioChampions" src="champions.mp3"></audio>
+<script src="script.js"></script>
+</body>
+</html>
