@@ -3,36 +3,66 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Copa Primate - Vol. I</title>
+    <title>Copa Primate - Vol. II</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <div class="noise-overlay"></div>
 <div class="omen-bg">
     <div class="bg-energy-core"></div>
-    <div class="logo-glow"></div>
     <div class="vignette"></div>
 </div>
+
 <header class="main-header">
     <div class="header-content">
         <h1 class="titulo-principal">COPA PRIMATE</h1>
         <div class="vol-row">
             <img src="monito-der.png" class="sticker-monkey btn-sonido" title="¡Haz clic!">
-            <h2 class="vol-text">VOL. I</h2>
+            <h2 class="vol-text">VOL. II</h2>
             <img src="monito-izq.png" class="sticker-monkey btn-sonido" title="¡Haz clic!">
         </div>
     </div>
 </header>
+
 <main class="main-content">
     <section class="grid-equipos" id="container-equipos"></section>
-    <footer class="footer-controls">
-        <button class="btn-valorant" id="btn-fase-grupos"><span class="btn-content">GRUPOS</span></button>
-        <button class="btn-valorant" id="btn-playoffs" style="display: none; margin-left: 20px;"><span class="btn-content">FASE FINAL</span></button>
+    <footer class="footer-controls" id="footer-controls">
+        <button class="btn-valorant" id="btn-sorteo"><span class="btn-content">⚡ SORTEO</span></button>
+        <button class="btn-valorant" id="btn-grupos" style="display:none"><span class="btn-content">FASE DE GRUPOS</span></button>
+        <button class="btn-valorant" id="btn-playoffs" style="display:none"><span class="btn-content">PLAYOFFS</span></button>
+        <button class="btn-valorant" id="btn-bracket" style="display:none"><span class="btn-content">FASE FINAL</span></button>
     </footer>
 </main>
-<div class="team-modal" id="teamModal"><div class="team-modal-card" id="teamModalCard"></div></div>
+
+<!-- OVERLAY SORTEO -->
+<div id="sorteo-overlay" class="sorteo-overlay">
+    <div class="sorteo-panel">
+        <h2 class="sorteo-title">SORTEO DE BOMBOS</h2>
+        <div class="bombos-grid" id="bombos-grid"></div>
+        <div class="sorteo-stage" id="sorteo-stage">
+            <div class="sorteo-ball-container" id="sorteo-ball-container">
+                <div class="sorteo-ball" id="sorteo-ball">?</div>
+            </div>
+            <div class="sorteo-info" id="sorteo-info">Haz clic en el balón para sortear</div>
+        </div>
+        <button class="btn-valorant" id="btn-cerrar-sorteo" style="display:none; margin-top:20px"><span class="btn-content">VER BOMBOS</span></button>
+    </div>
+</div>
+
+<!-- MODAL -->
+<div class="team-modal" id="teamModal">
+    <div class="team-modal-card" id="teamModalCard"></div>
+</div>
+
+<!-- TABLA GENERAL -->
+<div class="team-modal" id="tablaModal">
+    <div class="team-modal-card" id="tablaModalCard" style="max-width:900px; width:95%"></div>
+</div>
+
 <audio id="audioMono" src="sonido.mp3"></audio>
 <audio id="audioChampions" src="champions.mp3"></audio>
+<audio id="audioDrum" src="drum.mp3"></audio>
+
 <script src="script.js"></script>
 </body>
 </html>
