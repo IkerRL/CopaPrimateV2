@@ -1,759 +1,624 @@
-// ============================================================
-// COPA PRIMATE VOL. II — SCRIPT PRINCIPAL
-// Formato: 18 equipos, 4 Bombos, Fase de Grupos, Playoffs, Bracket
-// ============================================================
+// ================================================================
+// COPA PRIMATE VOL. II
+// 16 equipos · 4 grupos de 4 · Liga cruzada (4 partidos c/u)
+// Top 4 directo · 5º-12º playoff · 13º-16º eliminados
+// Bracket: Cuartos → Semis → Final
+// ================================================================
 
-// --- 1. DATOS DE EQUIPOS (3 jugadores por equipo) ---
-const equipos = [
-    // BOMBO A — Nivel Alto (5 equipos)
-    { nombre: "Rose Devil",     jugadores: ["Tony", "Jokker", "TBD"],              logo: "logo1.png",  bombo: "A" },
-    { nombre: "Golden Sex",     jugadores: ["Max", "Broken", "TBD"],               logo: "logo2.png",  bombo: "A" },
-    { nombre: "Crimson Eclipse",jugadores: ["ReyFhantom", "zNyrex", "TBD"],        logo: "logo5.png",  bombo: "A" },
-    { nombre: "GOATS",          jugadores: ["Mica", "Marco", "TBD"],               logo: "logo12.png", bombo: "A" },
-    { nombre: "Los Akrtona2",   jugadores: ["S3R4X", "MasterKira", "TBD"],        logo: "logo4.png",  bombo: "A" },
+// --- EQUIPOS Y GRUPOS (edita aquí) ---
+const GRUPOS = {
+    A: [
+        { nombre: "Rose Devil",      jugadores: ["Tony","Jokker","TBD"],             logo: "logo1.png"  },
+        { nombre: "Golden Sex",      jugadores: ["Max","Broken","TBD"],              logo: "logo2.png"  },
+        { nombre: "Crimson Eclipse", jugadores: ["ReyFhantom","zNyrex","TBD"],       logo: "logo5.png"  },
+        { nombre: "GOATS",           jugadores: ["Mica","Marco","TBD"],              logo: "logo12.png" },
+    ],
+    B: [
+        { nombre: "Los Akrtona2",    jugadores: ["S3R4X","MasterKira","TBD"],        logo: "logo4.png"  },
+        { nombre: "Bloody Fruit",    jugadores: ["MrPain 神","Sandiass21","TBD"],    logo: "logo7.png"  },
+        { nombre: "SPIDYBOOBS",      jugadores: ["Sama","Potro","TBD"],              logo: "logo14.png" },
+        { nombre: "MUGIWARAS",       jugadores: ["Andreloregon","Jess","TBD"],       logo: "logo15.png" },
+    ],
+    C: [
+        { nombre: "TETONES",         jugadores: ["Marrkitosss","Davv","TBD"],        logo: "logo11.png" },
+        { nombre: "Al-dedillo VC",   jugadores: ["Xolo","Noavae","TBD"],             logo: "logo3.png"  },
+        { nombre: "Konoha Makaca",   jugadores: ["MakaQuillo","MakaIsla","TBD"],     logo: "logo9.png"  },
+        { nombre: "Hijas del Kaos",  jugadores: ["Satha","Kaos","TBD"],              logo: "logo8.png"  },
+    ],
+    D: [
+        { nombre: "Makaco NinjaPelocho", jugadores: ["Iker","Adri","TBD"],           logo: "logo6.png"  },
+        { nombre: "Miaus",           jugadores: ["Kae","Wilson","TBD"],              logo: "logo13.png" },
+        { nombre: "Team Obrikat",    jugadores: ["JettDiffs","EGOFack","TBD"],       logo: "logo10.png" },
+        { nombre: "Los Simios FC",   jugadores: ["Primate1","Primate2","Primate3"],  logo: "logo16.png" },
+    ]
+};
 
-    // BOMBO B — Nivel Medio-Alto (5 equipos)
-    { nombre: "Bloody Fruit",   jugadores: ["MrPain 神", "Sandiass21", "TBD"],     logo: "logo7.png",  bombo: "B" },
-    { nombre: "SPIDYBOOBS",     jugadores: ["Sama", "Potro", "TBD"],              logo: "logo14.png", bombo: "B" },
-    { nombre: "MUGIWARAS",      jugadores: ["Andreloregon", "Jess", "TBD"],       logo: "logo15.png", bombo: "B" },
-    { nombre: "TETONES",        jugadores: ["Marrkitosss", "Davv", "TBD"],        logo: "logo11.png", bombo: "B" },
-    { nombre: "Al-dedillo VC",  jugadores: ["Xolo", "Noavae", "TBD"],             logo: "logo3.png",  bombo: "B" },
+// Lista plana de equipos
+const equipos = Object.entries(GRUPOS).flatMap(([g, lista]) =>
+    lista.map(e => ({ ...e, grupo: g }))
+);
 
-    // BOMBO C — Nivel Medio-Bajo (4 equipos) — +3 puntos de colchón
-    { nombre: "Konoha Makaca",       jugadores: ["MakaQuillo", "MakaIsla", "TBD"],  logo: "logo9.png",  bombo: "C" },
-    { nombre: "Makaco NinjaPelocho", jugadores: ["Iker", "Adri", "TBD"],           logo: "logo6.png",  bombo: "C" },
-    { nombre: "Hijas del Kaos",      jugadores: ["Satha", "Kaos", "TBD"],          logo: "logo8.png",  bombo: "C" },
-    { nombre: "Miaus",               jugadores: ["Kae", "Wilson", "TBD"],          logo: "logo13.png", bombo: "C" },
+const getEq  = nombre => equipos.find(e => e.nombre === nombre);
+const letras = ['A','B','C','D'];
 
-    // BOMBO D — Nivel Bajo (4 equipos) — +3 puntos de colchón
-    { nombre: "Team Obrikat",   jugadores: ["JettDiffs", "EGOFack", "TBD"],        logo: "logo10.png", bombo: "D" },
-    { nombre: "Los Primates",   jugadores: ["Jugador1", "Jugador2", "Jugador3"],   logo: "logo16.png", bombo: "D" },
-    { nombre: "Wild Cards",     jugadores: ["Jugador1", "Jugador2", "Jugador3"],   logo: "logo17.png", bombo: "D" },
-    { nombre: "Los Novatos",    jugadores: ["Jugador1", "Jugador2", "Jugador3"],   logo: "logo18.png", bombo: "D" },
-];
+// Calendario: array de { t1, t2 } generado tras el sorteo
+let calendario = [];           // [{ t1:'nombre', t2:'nombre' }]
+let resultados = {};           // key 'A|B' -> { s1, s2 }  (s1=goles t1, s2=goles t2)
+let playoffsData = [];         // [{ t1, t2, ganador, s1, s2 }]
+let bracketData  = null;
 
-// Bombos por defecto (pueden cambiar tras sorteo)
-const BOMBOS = { A: [], B: [], C: [], D: [] };
-equipos.forEach(e => BOMBOS[e.bombo].push(e.nombre));
+// ----------------------------------------------------------------
+// DOM
+// ----------------------------------------------------------------
+const container     = document.getElementById('container-equipos');
+const modal         = document.getElementById('teamModal');
+const modalCard     = document.getElementById('teamModalCard');
+const tablaModal    = document.getElementById('tablaModal');
+const tablaCard     = document.getElementById('tablaModalCard');
+const btnSorteo     = document.getElementById('btn-sorteo');
+const btnLiga       = document.getElementById('btn-liga');
+const btnPlayoffs   = document.getElementById('btn-playoffs');
+const btnBracket    = document.getElementById('btn-bracket');
+const sorteoOverlay = document.getElementById('sorteo-overlay');
+const audioMono     = document.getElementById('audioMono');
+const audioChamp    = document.getElementById('audioChampions');
 
-// Colchón de puntos para bombos C y D
-const COLCHON_PUNTOS = 3;
-const BOMBOS_CON_COLCHON = ["C", "D"];
+// Cerrar modales
+modal.addEventListener('click', e => { if(e.target===modal) modal.classList.remove('active'); });
+tablaModal.addEventListener('click', e => { if(e.target===tablaModal) tablaModal.classList.remove('active'); });
+document.querySelectorAll('.btn-sonido').forEach(m => m.addEventListener('click', () => { audioMono.currentTime=0; audioMono.play(); }));
 
-// Partidos generados tras el sorteo
-let calendarioGenerado = {};   // { nombreEquipo: [{rival, local}, ...] }
-let resultadosGrupo = {};      // { "Equipo1 vs Equipo2": { g1: x, g2: y } }
-let sorteoRealizado = false;
-let playoffsData = [];         // [{t1, t2, ganador}]
-let bracketData = {};          // datos del bracket final
-
-// --- 2. DOM REFS ---
-const container      = document.getElementById("container-equipos");
-const modal          = document.getElementById("teamModal");
-const modalCard      = document.getElementById("teamModalCard");
-const tablaModal     = document.getElementById("tablaModal");
-const tablaModalCard = document.getElementById("tablaModalCard");
-const audio          = document.getElementById("audioMono");
-const audioChampions = document.getElementById("audioChampions");
-const sorteoOverlay  = document.getElementById("sorteo-overlay");
-const btnSorteo      = document.getElementById("btn-sorteo");
-const btnGrupos      = document.getElementById("btn-grupos");
-const btnPlayoffs    = document.getElementById("btn-playoffs");
-const btnBracket     = document.getElementById("btn-bracket");
-
-// --- 3. SONIDOS ---
-document.querySelectorAll('.btn-sonido').forEach(mono => {
-    mono.addEventListener('click', () => { audio.currentTime = 0; audio.play(); });
-});
-
-// --- 4. RENDER INICIAL DE EQUIPOS ---
-function renderEquiposIniciales() {
+// ----------------------------------------------------------------
+// RENDER INICIAL
+// ----------------------------------------------------------------
+function renderInicial() {
     container.innerHTML = '';
     container.style.cssText = '';
     equipos.forEach(eq => {
-        const card = document.createElement("div");
-        card.className = "card-equipo";
+        const card = document.createElement('div');
+        card.className = 'card-equipo';
         card.innerHTML = `
             <div class="smoke-cover"></div>
-            <div class="bombo-badge ${eq.bombo}">BOMBO ${eq.bombo}</div>
+            <div class="grupo-badge ${eq.grupo}">GRUPO ${eq.grupo}</div>
             <div class="equipo-content">
-                <img src="${eq.logo}" class="equipo-logo" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2260%22 height=%2260%22><rect width=%2260%22 height=%2260%22 fill=%22%23333%22/><text x=%2230%22 y=%2235%22 text-anchor=%22middle%22 fill=%22white%22 font-size=%2212%22>?</text></svg>'">
-                <div class="equipo-data">
+                <img src="${eq.logo}" class="equipo-logo" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2255%22 height=%2255%22><rect width=%2255%22 height=%2255%22 rx=%228%22 fill=%22%23222%22/><text x=%2227%22 y=%2233%22 text-anchor=%22middle%22 fill=%22%23666%22 font-size=%2212%22>?</text></svg>'">
+                <div>
                     <div class="nombre-equipo">${eq.nombre}</div>
-                    <div class="jugadores-row">
-                        ${eq.jugadores.map(j => `<span>👤 ${j}</span>`).join('')}
-                    </div>
+                    <div class="jugadores-row">${eq.jugadores.map(j=>`<span>👤 ${j}</span>`).join('')}</div>
                 </div>
             </div>`;
-        card.addEventListener("click", () => card.classList.add("revealed"));
-        card.addEventListener("dblclick", (e) => {
-            e.stopPropagation();
-            abrirModalEquipo(eq);
-        });
+        card.addEventListener('click', () => card.classList.add('revealed'));
         container.appendChild(card);
     });
 }
+renderInicial();
 
-function abrirModalEquipo(eq) {
-    if (sorteoRealizado) return;
-    modalCard.innerHTML = `
-        <div style="display:flex; align-items:center; gap:30px">
-            <img src="${eq.logo}" style="width:120px; height:120px; object-fit:contain"
-                 onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2260%22 height=%2260%22><rect width=%2260%22 height=%2260%22 fill=%22%23333%22/></svg>'">
-            <div>
-                <div class="bombo-badge ${eq.bombo}" style="position:static; display:inline-block; margin-bottom:10px">BOMBO ${eq.bombo}</div>
-                <h2 style="font-family:'BertholdBlock'; font-size:2rem; margin-bottom:10px">${eq.nombre}</h2>
-                <div style="display:flex; flex-direction:column; gap:5px; color:var(--omen-cyan); font-size:1rem">
-                    ${eq.jugadores.map(j => `<span>👤 ${j}</span>`).join('')}
-                </div>
-            </div>
-        </div>`;
-    modal.classList.add("active");
-}
+// ----------------------------------------------------------------
+// SORTEO DE ENFRENTAMIENTOS
+// ----------------------------------------------------------------
+btnSorteo.addEventListener('click', () => {
+    sorteoOverlay.classList.add('active');
+    prepararSorteo();
+});
 
-modal.addEventListener("click", (e) => { if (e.target === modal) modal.classList.remove("active"); });
-tablaModal.addEventListener("click", (e) => { if (e.target === tablaModal) tablaModal.classList.remove("active"); });
-
-renderEquiposIniciales();
-
-// ============================================================
-// 5. SORTEO ANIMADO
-// ============================================================
-btnSorteo.onclick = () => {
-    iniciarSorteo();
-};
-
-function iniciarSorteo() {
-    sorteoOverlay.classList.add("active");
-    renderBombosVacios();
-    setupSorteoLogica();
-}
-
-function renderBombosVacios() {
-    const grid = document.getElementById("bombos-grid");
-    grid.innerHTML = '';
-    ['A','B','C','D'].forEach(letra => {
-        const col = document.createElement("div");
-        col.className = `bombo-col ${letra}`;
-        col.id = `bombo-col-${letra}`;
-        const info = letra === 'A' || letra === 'B' ? '5 equipos' : '4 equipos';
-        const colchon = BOMBOS_CON_COLCHON.includes(letra) ? `<div class="bombo-colchon">⭐ +${COLCHON_PUNTOS} pts de colchón</div>` : '';
-        col.innerHTML = `<div class="bombo-col-title">BOMBO ${letra} <span style="font-size:.65rem;opacity:.5">${info}</span></div>${colchon}`;
-        grid.appendChild(col);
-    });
-}
-
-function setupSorteoLogica() {
-    // Mezclar equipos aleatoriamente para el sorteo
-    const equiposPorBombo = {
-        A: [...BOMBOS.A],
-        B: [...BOMBOS.B],
-        C: [...BOMBOS.C],
-        D: [...BOMBOS.D]
-    };
-    // Resultado final del sorteo (bombos se mantienen, solo animamos la revelación)
-    const secuenciaSorteo = [];
-    ['A','B','C','D'].forEach(letra => {
-        const mezclados = shuffle([...equiposPorBombo[letra]]);
-        mezclados.forEach(nombre => secuenciaSorteo.push({ nombre, bombo: letra }));
+function prepararSorteo() {
+    // Mostrar grupos en el display
+    const display = document.getElementById('sorteo-grupos-display');
+    display.innerHTML = '';
+    letras.forEach(g => {
+        const col = document.createElement('div');
+        col.className = `sg-col ${g}`;
+        col.id = `sg-col-${g}`;
+        col.innerHTML = `<div class="sg-col-title">GRUPO ${g}</div>`;
+        GRUPOS[g].forEach(eq => {
+            const chip = document.createElement('div');
+            chip.className = 'sg-team';
+            chip.id = `sg-team-${eq.nombre.replace(/\s/g,'_')}`;
+            chip.innerHTML = `<img src="${eq.logo}" onerror="this.style.display='none'"><span>${eq.nombre}</span>`;
+            col.appendChild(chip);
+        });
+        display.appendChild(col);
     });
 
-    let idx = 0;
-    const ball = document.getElementById("sorteo-ball");
-    const info = document.getElementById("sorteo-info");
-    const currentTeam = document.getElementById("sorteo-stage");
-    const btnCerrar = document.getElementById("btn-cerrar-sorteo");
+    document.getElementById('sorteo-resultado').innerHTML = '';
+    document.getElementById('sorteo-info').textContent = 'Pulsa el balón para sortear';
+    document.getElementById('sorteo-match-reveal').textContent = '';
+    document.getElementById('btn-cerrar-sorteo').style.display = 'none';
 
-    // Añadir elemento de nombre del equipo actual
-    let teamNameEl = document.getElementById("sorteo-current-team");
-    if (!teamNameEl) {
-        teamNameEl = document.createElement("div");
-        teamNameEl.id = "sorteo-current-team";
-        teamNameEl.className = "sorteo-current-team";
-        currentTeam.appendChild(teamNameEl);
-    }
+    // Generar todos los emparejamientos necesarios
+    const emparejamientos = generarEmparejamientos();
+    calendar_pendiente = [...emparejamientos];
+    idx_sorteo = 0;
+    total_sorteo = emparejamientos.length;
 
-    ball.textContent = "▶";
-    ball.onclick = () => {
-        if (idx >= secuenciaSorteo.length) return;
-
-        const item = secuenciaSorteo[idx];
-        const eq = equipos.find(e => e.nombre === item.nombre);
-
-        // Animar bola
-        ball.classList.remove("spinning", "reveal-anim");
-        ball.textContent = "...";
-        ball.classList.add("spinning");
-
-        // Sonido
-        try { audio.currentTime = 0; audio.play(); } catch(e) {}
-
-        setTimeout(() => {
-            ball.classList.remove("spinning");
-            ball.classList.add("reveal-anim");
-            ball.textContent = item.bombo;
-
-            info.textContent = `BOMBO ${item.bombo}`;
-            teamNameEl.textContent = item.nombre;
-
-            // Añadir chip al bombo correspondiente
-            setTimeout(() => {
-                const col = document.getElementById(`bombo-col-${item.bombo}`);
-                const chip = document.createElement("div");
-                chip.className = "bombo-team-chip";
-                chip.innerHTML = `<img src="${eq.logo}" onerror="this.style.display='none'"><span>${eq.nombre}</span>`;
-                col.appendChild(chip);
-                // Animar entrada
-                setTimeout(() => chip.classList.add("visible"), 50);
-            }, 300);
-
-            idx++;
-
-            if (idx >= secuenciaSorteo.length) {
-                ball.textContent = "✓";
-                ball.style.cursor = "default";
-                ball.onclick = null;
-                info.textContent = "SORTEO COMPLETADO";
-                teamNameEl.textContent = "";
-                btnCerrar.style.display = "block";
-            } else {
-                setTimeout(() => { ball.classList.remove("reveal-anim"); ball.textContent = "▶"; }, 600);
-            }
-        }, 800);
-    };
-
-    btnCerrar.onclick = () => {
-        sorteoOverlay.classList.remove("active");
-        sorteoRealizado = true;
-        generarCalendario();
-        btnSorteo.style.display = 'none';
-        btnGrupos.style.display = 'inline-block';
-    };
+    const ball = document.getElementById('sorteo-ball');
+    ball.textContent = '▶';
+    ball.style.cursor = 'pointer';
+    ball.onclick = null;
+    ball.onclick = () => sortearSiguiente(ball, emparejamientos);
 }
 
-// ============================================================
-// 6. GENERACIÓN DE CALENDARIO
-// ============================================================
-function generarCalendario() {
-    // Cada equipo juega contra un rival de cada bombo distinto al suyo
-    // Los de bombo A y B juegan un partido extra entre ellos
-    calendarioGenerado = {};
-    resultadosGrupo = {};
-    equipos.forEach(e => { calendarioGenerado[e.nombre] = []; });
+let calendar_pendiente = [];
+let idx_sorteo = 0;
+let total_sorteo = 0;
+let sorteo_animando = false;
 
-    // Función helper para registrar partido
-    function agregarPartido(n1, n2) {
-        const key = clavePartido(n1, n2);
-        if (!resultadosGrupo[key]) {
-            resultadosGrupo[key] = { g1: '', g2: '' };
-            calendarioGenerado[n1].push(n2);
-            calendarioGenerado[n2].push(n1);
+function generarEmparejamientos() {
+    // Para cada grupo, necesita:
+    // - 1 rival del mismo grupo (sorteo interno)
+    // - 1 rival de cada uno de los otros 3 grupos
+    // Total: 4 partidos por equipo, 32 partidos en total / 2 = 16 partidos únicos... 
+    // Con 4 grupos de 4: cada equipo juega 4 partidos = 4*16/2 = 32 únicos
+
+    const partidos = [];
+    const vistos = new Set();
+
+    const add = (a, b) => {
+        const key = [a,b].sort().join('|');
+        if (!vistos.has(key)) { vistos.add(key); partidos.push({t1:a, t2:b}); }
+    };
+
+    // Partidos dentro del mismo grupo (todos contra todos parcial: 1 partido por par)
+    // Barajamos cada grupo y emparejamos: 0v1, 2v3
+    letras.forEach(g => {
+        const arr = shuffle([...GRUPOS[g].map(e=>e.nombre)]);
+        add(arr[0], arr[1]);
+        add(arr[2], arr[3]);
+    });
+
+    // Partidos entre grupos distintos: cada equipo vs 1 de cada otro grupo
+    // A vs B, A vs C, A vs D, B vs C, B vs D, C vs D
+    const pares = [['A','B'],['A','C'],['A','D'],['B','C'],['B','D'],['C','D']];
+    pares.forEach(([g1,g2]) => {
+        const arr1 = shuffle([...GRUPOS[g1].map(e=>e.nombre)]);
+        const arr2 = shuffle([...GRUPOS[g2].map(e=>e.nombre)]);
+        // Emparejamos 1 a 1 (4 equipos vs 4 equipos → 4 partidos)
+        arr1.forEach((t,i) => add(t, arr2[i]));
+    });
+
+    return shuffle(partidos);
+}
+
+function sortearSiguiente(ball, lista) {
+    if (sorteo_animando) return;
+    if (idx_sorteo >= lista.length) return;
+
+    sorteo_animando = true;
+    const match = lista[idx_sorteo];
+    const eq1 = getEq(match.t1);
+    const eq2 = getEq(match.t2);
+    const infoEl = document.getElementById('sorteo-info');
+    const revealEl = document.getElementById('sorteo-match-reveal');
+
+    // Resaltar equipos en el panel
+    document.querySelectorAll('.sg-team').forEach(el => el.classList.remove('highlighted'));
+    const id1 = `sg-team-${match.t1.replace(/\s/g,'_')}`;
+    const id2 = `sg-team-${match.t2.replace(/\s/g,'_')}`;
+
+    ball.classList.add('spinning');
+    ball.textContent = '...';
+    infoEl.textContent = 'SORTEANDO...';
+    revealEl.textContent = '';
+    try { audioMono.currentTime=0; audioMono.play(); } catch(e) {}
+
+    setTimeout(() => {
+        ball.classList.remove('spinning');
+        ball.textContent = `${eq1.grupo}v${eq2.grupo}`;
+        infoEl.textContent = `PARTIDO ${idx_sorteo+1} / ${total_sorteo}`;
+        revealEl.textContent = `${match.t1} ⚡ ${match.t2}`;
+
+        document.getElementById(id1)?.classList.add('highlighted');
+        document.getElementById(id2)?.classList.add('highlighted');
+
+        // Añadir a lista de resultados
+        const resEl = document.getElementById('sorteo-resultado');
+        const item = document.createElement('div');
+        item.className = 'sorteo-match-item';
+        item.innerHTML = `
+            <img src="${eq1.logo}" onerror="this.style.display='none'">
+            <span>${match.t1}</span>
+            <span class="vs-badge">VS</span>
+            <span>${match.t2}</span>
+            <img src="${eq2.logo}" onerror="this.style.display='none'">
+            <span class="grupo-vs">G${eq1.grupo} · G${eq2.grupo}</span>`;
+        resEl.appendChild(item);
+        setTimeout(() => item.classList.add('visible'), 50);
+        resEl.scrollTop = resEl.scrollHeight;
+
+        // Guardar en calendario
+        resultados[[match.t1,match.t2].sort().join('|')] = { s1:'', s2:'' };
+        calendario.push(match);
+
+        idx_sorteo++;
+        sorteo_animando = false;
+
+        if (idx_sorteo >= lista.length) {
+            ball.textContent = '✓';
+            ball.style.cursor = 'default';
+            ball.onclick = null;
+            infoEl.textContent = `¡SORTEO COMPLETADO! ${total_sorteo} PARTIDOS`;
+            revealEl.textContent = '';
+            document.getElementById('btn-cerrar-sorteo').style.display = 'block';
+        } else {
+            setTimeout(() => { ball.textContent = '▶'; }, 500);
         }
-    }
-
-    // Todos contra todos entre bombos distintos (cruzado)
-    const letrasBombo = ['A','B','C','D'];
-    for (let i = 0; i < letrasBombo.length; i++) {
-        for (let j = i+1; j < letrasBombo.length; j++) {
-            const teamsBi = BOMBOS[letrasBombo[i]];
-            const teamsBj = BOMBOS[letrasBombo[j]];
-            // Cada equipo del bombo i juega contra un equipo del bombo j
-            // Emparejamos secuencialmente (rotando) para equilibrar
-            const maxLen = Math.max(teamsBi.length, teamsBj.length);
-            for (let k = 0; k < Math.min(teamsBi.length, teamsBj.length); k++) {
-                agregarPartido(teamsBi[k], teamsBj[k]);
-            }
-        }
-    }
-
-    // Partido extra entre equipos del mismo bombo (solo A y B, que tienen 5)
-    ['A','B'].forEach(letra => {
-        const teams = shuffle([...BOMBOS[letra]]);
-        // Emparejar los 5: 0v1, 2v3, 4 sin rival extra (o 0v4)
-        agregarPartido(teams[0], teams[1]);
-        agregarPartido(teams[2], teams[3]);
-        // El 5º juega contra el primero si no tienen partido
-        agregarPartido(teams[4], teams[0]);
-    });
+    }, 800);
 }
 
-function clavePartido(n1, n2) {
-    return [n1, n2].sort().join(' | ');
-}
+document.getElementById('btn-cerrar-sorteo').addEventListener('click', () => {
+    sorteoOverlay.classList.remove('active');
+    btnSorteo.style.display = 'none';
+    btnLiga.style.display = 'inline-block';
 
-// ============================================================
-// 7. FASE DE GRUPOS
-// ============================================================
-btnGrupos.onclick = () => {
-    mostrarFaseGrupos();
-    btnGrupos.style.display = 'none';
+    // Botón tabla flotante
+    let tf = document.getElementById('btn-tabla-flotante');
+    if (!tf) {
+        tf = document.createElement('button');
+        tf.id = 'btn-tabla-flotante';
+        tf.className = 'btn-valorant btn-gold';
+        tf.innerHTML = '<span class="btn-content">📊 TABLA</span>';
+        document.body.appendChild(tf);
+        tf.addEventListener('click', mostrarTabla);
+    }
+    tf.style.display = 'block';
+});
+
+// ----------------------------------------------------------------
+// CLAVE DE PARTIDO
+// ----------------------------------------------------------------
+function clave(a,b) { return [a,b].sort().join('|'); }
+
+// ----------------------------------------------------------------
+// FASE DE LIGA
+// ----------------------------------------------------------------
+btnLiga.addEventListener('click', () => {
+    mostrarLiga();
+    btnLiga.style.display = 'none';
     btnPlayoffs.style.display = 'inline-block';
+});
 
-    // Botón flotante de tabla
-    let btnTablaFlotante = document.getElementById("btn-tabla-flotante");
-    if (!btnTablaFlotante) {
-        btnTablaFlotante = document.createElement("button");
-        btnTablaFlotante.id = "btn-tabla-flotante";
-        btnTablaFlotante.className = "btn-valorant btn-tabla btn-gold";
-        btnTablaFlotante.innerHTML = '<span class="btn-content">📊 TABLA</span>';
-        btnTablaFlotante.style.display = 'block';
-        document.body.appendChild(btnTablaFlotante);
-        btnTablaFlotante.onclick = mostrarTablaGeneral;
-    }
-};
-
-function mostrarFaseGrupos() {
+function mostrarLiga() {
     container.innerHTML = '';
+    const wrapper = document.createElement('div');
+    wrapper.className = 'liga-wrapper';
 
-    const wrapper = document.createElement("div");
-    wrapper.className = "grupos-wrapper";
+    letras.forEach(g => {
+        const div = document.createElement('div');
+        div.className = 'contenedor-grupo';
+        const color = `var(--col-${g.toLowerCase()})`;
 
-    ['A','B','C','D'].forEach(letra => {
-        const grupoDiv = document.createElement("div");
-        grupoDiv.className = "contenedor-grupo";
-
-        const colorBombo = `var(--bombo-${letra.toLowerCase()})`;
-        const esConColchon = BOMBOS_CON_COLCHON.includes(letra);
-        const colchonHTML = esConColchon ? `<div class="colchon-banner">⭐ Colchón inicial: +${COLCHON_PUNTOS} puntos</div>` : '';
-
-        grupoDiv.innerHTML = `
-            <h2 class="titulo-grupo-header" style="color:${colorBombo}">
-                BOMBO ${letra}
-                <span>CLIC PARA GESTIONAR PARTIDOS</span>
+        div.innerHTML = `
+            <h2 class="titulo-grupo-header" style="color:${color}">
+                GRUPO ${g}
+                <small>DOBLE CLIC PARA GESTIONAR</small>
             </h2>
-            ${colchonHTML}
-            <div class="lista-interna" id="lista-${letra}"></div>`;
+            <div class="lista-interna" id="lista-${g}"></div>`;
 
-        const lista = grupoDiv.querySelector(`#lista-${letra}`);
-        const cardsDelGrupo = [];
+        const lista = div.querySelector(`#lista-${g}`);
+        const cards = [];
 
-        BOMBOS[letra].forEach(nombre => {
-            const eq = equipos.find(e => e.nombre === nombre);
-            const card = crearCardGrupo(eq);
+        GRUPOS[g].forEach(eq => {
+            const card = crearCardLiga(eq);
             lista.appendChild(card);
-            cardsDelGrupo.push({ card, eq });
+            cards.push({ card, eq });
         });
 
-        grupoDiv.querySelector('.titulo-grupo-header').onclick = () => {
-            abrirGestionPartidos(letra, cardsDelGrupo, lista);
-        };
+        div.querySelector('.titulo-grupo-header').ondblclick = () => abrirPartidosGrupo(g, cards, lista);
 
-        wrapper.appendChild(grupoDiv);
-        actualizarClasificacion(letra, cardsDelGrupo, lista);
+        wrapper.appendChild(div);
+        actualizarOrdenGrupo(g, cards, lista);
     });
 
     container.appendChild(wrapper);
 }
 
-function crearCardGrupo(eq) {
-    const card = document.createElement("div");
-    card.className = "card-equipo revealed";
-    const numVictorias = calcularVictorias(eq.nombre);
+function crearCardLiga(eq) {
+    const wins = getWins(eq.nombre);
+    const partidos = getPartidosEquipo(eq.nombre);
+    const card = document.createElement('div');
+    card.className = 'card-equipo revealed';
     card.innerHTML = `
         <div class="equipo-content" style="opacity:1">
-            <img src="${eq.logo}" class="equipo-logo"
-                 onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2260%22 height=%2260%22><rect width=%2260%22 height=%2260%22 fill=%22%23333%22/></svg>'">
+            <img src="${eq.logo}" class="equipo-logo" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2240%22 height=%2240%22><rect width=%2240%22 height=%2240%22 rx=%226%22 fill=%22%23222%22/></svg>'">
             <div style="flex:1">
                 <div class="nombre-equipo">${eq.nombre}</div>
-                <div style="font-size:.65rem; color:rgba(255,255,255,0.4); margin-top:2px">BOMBO ${eq.bombo}</div>
+                <div style="font-size:.6rem; color:rgba(255,255,255,0.35); margin-top:2px">GRUPO ${eq.grupo}</div>
             </div>
             <div class="pelotitas-container">
-                ${generarPelotitas(eq.nombre)}
+                ${partidos.map((_,i) => `<div class="pelotita" data-estado="${i<wins?'1':'0'}"></div>`).join('')}
             </div>
         </div>`;
     return card;
 }
 
-function generarPelotitas(nombreEquipo) {
-    const partidos = calendarioGenerado[nombreEquipo] || [];
-    const wins = calcularVictorias(nombreEquipo);
-    const total = partidos.length;
-    let html = '';
-    for (let i = 0; i < total; i++) {
-        const activo = i < wins ? 'data-estado="1"' : 'data-estado="0"';
-        html += `<div class="pelotita" ${activo}></div>`;
-    }
-    return html;
+function getPartidosEquipo(nombre) {
+    return calendario.filter(p => p.t1===nombre || p.t2===nombre);
 }
 
-function calcularVictorias(nombre) {
-    let wins = 0;
-    const rivales = calendarioGenerado[nombre] || [];
-    rivales.forEach(rival => {
-        const key = clavePartido(nombre, rival);
-        const res = resultadosGrupo[key];
-        if (!res) return;
-        const g1 = parseInt(res.g1) || 0;
-        const g2 = parseInt(res.g2) || 0;
-        if (g1 === g2 || (g1 === 0 && g2 === 0)) return;
-        // Determinar cuál es el "local" en la key
-        const [n1] = clavePartido(nombre, rival).split(' | ');
-        const esN1 = n1 === nombre;
-        if (esN1 && g1 > g2) wins++;
-        if (!esN1 && g2 > g1) wins++;
+function getWins(nombre) {
+    let w = 0;
+    getPartidosEquipo(nombre).forEach(p => {
+        const k = clave(p.t1, p.t2);
+        const r = resultados[k];
+        if (!r || r.s1==='' || r.s2==='') return;
+        const s1=parseInt(r.s1)||0, s2=parseInt(r.s2)||0;
+        if (s1===s2) return;
+        const esT1 = [p.t1,p.t2].sort()[0]===nombre ? (p.t1===nombre) : (p.t1===nombre);
+        // key ordena los nombres, así que t1 en resultados puede no coincidir con key[0]
+        const [kA] = k.split('|');
+        const esKA = kA===nombre;
+        if (esKA && s1>s2) w++;
+        if (!esKA && s2>s1) w++;
     });
-    return wins;
+    return w;
 }
 
-function calcularPuntosTabla(nombre) {
-    const bombo = equipos.find(e => e.nombre === nombre)?.bombo;
-    const colchon = BOMBOS_CON_COLCHON.includes(bombo) ? COLCHON_PUNTOS : 0;
-    return calcularVictorias(nombre) * 3 + colchon;
-}
-
-function calcularDiferencia(nombre) {
-    let diff = 0;
-    const rivales = calendarioGenerado[nombre] || [];
-    rivales.forEach(rival => {
-        const key = clavePartido(nombre, rival);
-        const res = resultadosGrupo[key];
-        if (!res) return;
-        const g1 = parseInt(res.g1) || 0;
-        const g2 = parseInt(res.g2) || 0;
-        const [n1] = key.split(' | ');
-        const esN1 = n1 === nombre;
-        diff += esN1 ? (g1 - g2) : (g2 - g1);
+function getDiff(nombre) {
+    let d = 0;
+    getPartidosEquipo(nombre).forEach(p => {
+        const k = clave(p.t1, p.t2);
+        const r = resultados[k];
+        if (!r || r.s1==='' || r.s2==='') return;
+        const s1=parseInt(r.s1)||0, s2=parseInt(r.s2)||0;
+        const [kA] = k.split('|');
+        d += (kA===nombre) ? (s1-s2) : (s2-s1);
     });
-    return diff;
+    return d;
 }
 
-function actualizarClasificacion(letra, cardsDelGrupo, lista) {
-    const stats = cardsDelGrupo.map(({ card, eq }) => ({
-        card, eq,
-        pts: calcularPuntosTabla(eq.nombre),
-        wins: calcularVictorias(eq.nombre),
-        diff: calcularDiferencia(eq.nombre)
-    }));
-    stats.sort((a, b) => b.pts - a.pts || b.wins - a.wins || b.diff - a.diff);
-    stats.forEach(({ card, eq, wins }) => {
+function getPuntos(nombre) { return getWins(nombre)*3; }
+
+function actualizarOrdenGrupo(g, cards, lista) {
+    const sorted = [...cards].sort((a,b) =>
+        getPuntos(b.eq.nombre)-getPuntos(a.eq.nombre) ||
+        getDiff(b.eq.nombre)-getDiff(a.eq.nombre)
+    );
+    sorted.forEach(({card,eq}) => {
         lista.appendChild(card);
-        const pelotitas = card.querySelectorAll('.pelotita');
-        pelotitas.forEach((p, i) => { p.dataset.estado = i < wins ? "1" : "0"; });
+        const wins = getWins(eq.nombre);
+        const partidos = getPartidosEquipo(eq.nombre);
+        card.querySelectorAll('.pelotita').forEach((p,i) => p.dataset.estado = i<wins?'1':'0');
     });
 }
 
-// --- Gestión de partidos del grupo ---
-function abrirGestionPartidos(letra, cardsDelGrupo, lista) {
-    const equiposDelBombo = BOMBOS[letra].map(n => equipos.find(e => e.nombre === n));
-
-    // Recoger todos los partidos de este bombo
-    const partidos = [];
-    const vistos = new Set();
-    equiposDelBombo.forEach(eq => {
-        (calendarioGenerado[eq.nombre] || []).forEach(rival => {
-            const key = clavePartido(eq.nombre, rival);
-            if (!vistos.has(key)) {
-                vistos.add(key);
-                // Solo mostrar si ambos son del mismo bombo (partido extra)
-                // o si el rival no es del mismo bombo
-                partidos.push({ key, n1: key.split(' | ')[0], n2: key.split(' | ')[1] });
-            }
-        });
-    });
-
-    // Filtrar: mostrar partidos donde AL MENOS uno es de este bombo
-    const partidosBombo = partidos.filter(p => {
-        const e1 = equipos.find(e => e.nombre === p.n1);
-        const e2 = equipos.find(e => e.nombre === p.n2);
-        return e1?.bombo === letra || e2?.bombo === letra;
-    });
-
-    const getEq = n => equipos.find(e => e.nombre === n);
+function abrirPartidosGrupo(g, cards, lista) {
+    // Partidos donde al menos uno es de este grupo
+    const partidos = calendario.filter(p =>
+        (getEq(p.t1)?.grupo===g || getEq(p.t2)?.grupo===g)
+    );
 
     modalCard.innerHTML = `
-        <h2 style="font-family:'BertholdBlock'; text-align:center; color:var(--omen-cyan); margin-bottom:15px; font-size:1.5rem">
-            BOMBO ${letra} — PARTIDOS
+        <h2 style="font-family:'BertholdBlock'; text-align:center; color:var(--col-${g.toLowerCase()}); margin-bottom:15px; font-size:1.4rem; letter-spacing:3px">
+            GRUPO ${g} — PARTIDOS
         </h2>
-        <div id="partidos-lista">
-        ${partidosBombo.map(p => {
-            const e1 = getEq(p.n1), e2 = getEq(p.n2);
-            const res = resultadosGrupo[p.key] || { g1: '', g2: '' };
-            return `
-            <div class="partido-row" data-key="${p.key}">
-                <img src="${e1?.logo}" onerror="this.style.display='none'">
-                <span style="font-size:.75rem">${p.n1}</span>
-                <input type="number" class="in-g1" value="${res.g1}" min="0" placeholder="0">
-                <span style="color:var(--omen-purple); font-family:'BertholdBlock'">-</span>
-                <input type="number" class="in-g2" value="${res.g2}" min="0" placeholder="0">
-                <span style="font-size:.75rem; text-align:right">${p.n2}</span>
-                <img src="${e2?.logo}" onerror="this.style.display='none'">
-            </div>`;
-        }).join('')}
-        </div>
-        <button class="btn-valorant" id="sv-partidos" style="width:100%; margin-top:15px"><span class="btn-content">GUARDAR RESULTADOS</span></button>`;
+        <div id="modal-partidos"></div>
+        <button class="btn-valorant" id="sv-partidos" style="width:100%; margin-top:12px"><span class="btn-content">GUARDAR</span></button>`;
 
-    modal.classList.add("active");
+    const cont = modalCard.querySelector('#modal-partidos');
+    partidos.forEach(p => {
+        const k = clave(p.t1,p.t2);
+        const r = resultados[k]||{s1:'',s2:''};
+        const [kA,kB] = k.split('|');
+        const eA=getEq(kA), eB=getEq(kB);
+        const row = document.createElement('div');
+        row.className = 'partido-row';
+        row.dataset.key = k;
+        row.innerHTML = `
+            <img src="${eA.logo}" onerror="this.style.display='none'">
+            <span class="pnom">${kA}</span>
+            <input type="number" class="in-s1" value="${r.s1}" min="0" placeholder="0">
+            <span class="sep">—</span>
+            <input type="number" class="in-s2" value="${r.s2}" min="0" placeholder="0">
+            <span class="pnom" style="text-align:right">${kB}</span>
+            <img src="${eB.logo}" onerror="this.style.display='none'">`;
+        cont.appendChild(row);
+    });
 
-    document.getElementById("sv-partidos").onclick = () => {
-        document.querySelectorAll('#partidos-lista .partido-row').forEach(row => {
-            const key = row.dataset.key;
-            const g1 = row.querySelector('.in-g1').value;
-            const g2 = row.querySelector('.in-g2').value;
-            resultadosGrupo[key] = { g1, g2 };
+    modal.classList.add('active');
+
+    modalCard.querySelector('#sv-partidos').onclick = () => {
+        cont.querySelectorAll('.partido-row').forEach(row => {
+            const k = row.dataset.key;
+            resultados[k] = {
+                s1: row.querySelector('.in-s1').value,
+                s2: row.querySelector('.in-s2').value
+            };
         });
-        actualizarClasificacion(letra, cardsDelGrupo, lista);
-        // Refrescar pelotitas
-        cardsDelGrupo.forEach(({ card, eq }) => {
-            const wins = calcularVictorias(eq.nombre);
-            card.querySelectorAll('.pelotita').forEach((p, i) => {
-                p.dataset.estado = i < wins ? "1" : "0";
-            });
-        });
-        modal.classList.remove("active");
+        actualizarOrdenGrupo(g, cards, lista);
+        modal.classList.remove('active');
     };
 }
 
-// ============================================================
-// 8. TABLA GENERAL
-// ============================================================
-function mostrarTablaGeneral() {
-    const ranking = equipos.map(eq => ({
-        eq,
-        pts: calcularPuntosTabla(eq.nombre),
-        wins: calcularVictorias(eq.nombre),
-        diff: calcularDiferencia(eq.nombre),
-        jugados: (calendarioGenerado[eq.nombre] || []).length
-    })).sort((a, b) => b.pts - a.pts || b.wins - a.wins || b.diff - a.diff);
-
-    const zonaTag = (pos) => {
-        if (pos <= 6)  return '<span class="zona-tag direct">DIRECTO</span>';
-        if (pos <= 14) return '<span class="zona-tag playoff">PLAYOFF</span>';
-        return '<span class="zona-tag elim">ELIMINADO</span>';
-    };
-
-    const zonaClass = (pos) => {
-        if (pos <= 6)  return 'tabla-zona-top';
-        if (pos <= 14) return 'tabla-zona-playoff';
-        return 'tabla-zona-elim';
-    };
-
-    tablaModalCard.innerHTML = `
-        <h2 style="font-family:'BertholdBlock'; text-align:center; color:var(--omen-cyan); margin-bottom:20px; font-size:1.8rem; letter-spacing:4px">
-            TABLA GENERAL
-        </h2>
-        <div style="font-size:.7rem; color:rgba(255,255,255,0.4); text-align:center; margin-bottom:15px">
-            ⭐ Bombos C y D incluyen ${COLCHON_PUNTOS} puntos de colchón
-        </div>
-        <table class="tabla-general">
-            <thead>
-                <tr>
-                    <th>#</th>
-                    <th>EQUIPO</th>
-                    <th>B</th>
-                    <th>PJ</th>
-                    <th>V</th>
-                    <th>PTS</th>
-                    <th>DIF</th>
-                    <th>ZONA</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${ranking.map((r, i) => {
-                    const pos = i + 1;
-                    const colchon = BOMBOS_CON_COLCHON.includes(r.eq.bombo) ? `<span class="colchon-pts">(+${COLCHON_PUNTOS})</span>` : '';
-                    return `<tr class="${zonaClass(pos)}">
-                        <td class="pos">${pos}</td>
-                        <td>
-                            <div style="display:flex; align-items:center; gap:8px">
-                                <img src="${r.eq.logo}" style="width:24px; height:24px; object-fit:contain" onerror="this.style.display='none'">
-                                <span style="font-size:.8rem">${r.eq.nombre}</span>
-                            </div>
-                        </td>
-                        <td><span class="bombo-badge ${r.eq.bombo}" style="position:static; display:inline-block; font-size:.55rem; padding:1px 5px">${r.eq.bombo}</span></td>
-                        <td style="text-align:center">${r.jugados}</td>
-                        <td style="text-align:center">${r.wins}</td>
-                        <td style="text-align:center; font-family:'BertholdBlock'">${r.pts} ${colchon}</td>
-                        <td style="text-align:center; color:${r.diff >= 0 ? '#00ff88' : '#ff4655'}">${r.diff > 0 ? '+' : ''}${r.diff}</td>
-                        <td>${zonaTag(pos)}</td>
-                    </tr>`;
-                }).join('')}
-            </tbody>
-        </table>
-        <div style="display:flex; gap:15px; justify-content:center; margin-top:20px; font-size:.7rem; flex-wrap:wrap">
-            <span><span class="zona-tag direct">DIRECTO</span> Top 6 → Cuartos</span>
-            <span><span class="zona-tag playoff">PLAYOFF</span> 7º-14º → Playoff previo</span>
-            <span><span class="zona-tag elim">ELIMINADO</span> 15º-18º → Fuera</span>
-        </div>`;
-
-    tablaModal.classList.add("active");
-}
-
-// ============================================================
-// 9. FASE DE PLAYOFFS (7º al 14º)
-// ============================================================
-btnPlayoffs.onclick = () => {
-    mostrarPlayoffs();
-    btnPlayoffs.style.display = 'none';
-    btnBracket.style.display = 'inline-block';
-};
-
+// ----------------------------------------------------------------
+// TABLA GENERAL
+// ----------------------------------------------------------------
 function getRanking() {
     return equipos.map(eq => ({
         eq,
-        pts: calcularPuntosTabla(eq.nombre),
-        wins: calcularVictorias(eq.nombre),
-        diff: calcularDiferencia(eq.nombre)
-    })).sort((a, b) => b.pts - a.pts || b.wins - a.wins || b.diff - a.diff);
+        pts:   getPuntos(eq.nombre),
+        wins:  getWins(eq.nombre),
+        diff:  getDiff(eq.nombre),
+        pj:    getPartidosEquipo(eq.nombre).filter(p=>{
+                   const r=resultados[clave(p.t1,p.t2)];
+                   return r&&r.s1!==''&&r.s2!=='';
+               }).length
+    })).sort((a,b) => b.pts-a.pts || b.wins-a.wins || b.diff-a.diff);
 }
+
+function mostrarTabla() {
+    const ranking = getRanking();
+    const zonaTag = pos => {
+        if(pos<=4)  return '<span class="zona-tag direct">DIRECTO</span>';
+        if(pos<=12) return '<span class="zona-tag playoff">PLAYOFF</span>';
+        return '<span class="zona-tag elim">ELIMINADO</span>';
+    };
+    const trClass = pos => pos<=4?'tr-direct':pos<=12?'tr-playoff':'tr-elim';
+
+    tablaCard.innerHTML = `
+        <h2 style="font-family:'BertholdBlock'; text-align:center; color:var(--omen-cyan); margin-bottom:20px; font-size:1.6rem; letter-spacing:4px">TABLA GENERAL</h2>
+        <table class="tabla-general">
+            <thead><tr>
+                <th>#</th><th>EQUIPO</th><th>GR</th><th>PJ</th><th>V</th><th>PTS</th><th>DIF</th><th>ZONA</th>
+            </tr></thead>
+            <tbody>
+            ${ranking.map((r,i)=>{
+                const pos=i+1;
+                return `<tr class="${trClass(pos)}">
+                    <td class="pos-num">${pos}</td>
+                    <td><div style="display:flex;align-items:center;gap:8px">
+                        <img src="${r.eq.logo}" style="width:22px;height:22px;object-fit:contain" onerror="this.style.display='none'">
+                        <span>${r.eq.nombre}</span>
+                    </div></td>
+                    <td><span class="grupo-badge ${r.eq.grupo}" style="position:static;display:inline-block;font-size:.55rem;padding:1px 5px">${r.eq.grupo}</span></td>
+                    <td style="text-align:center">${r.pj}</td>
+                    <td style="text-align:center">${r.wins}</td>
+                    <td style="text-align:center;font-family:'BertholdBlock'">${r.pts}</td>
+                    <td style="text-align:center;color:${r.diff>=0?'#00ff88':'#ff4655'}">${r.diff>0?'+':''}${r.diff}</td>
+                    <td>${zonaTag(pos)}</td>
+                </tr>`;
+            }).join('')}
+            </tbody>
+        </table>
+        <div style="display:flex;gap:12px;justify-content:center;margin-top:16px;font-size:.7rem;flex-wrap:wrap">
+            <span><span class="zona-tag direct">DIRECTO</span> Top 4 → Cuartos</span>
+            <span><span class="zona-tag playoff">PLAYOFF</span> 5º-12º → Playoff</span>
+            <span><span class="zona-tag elim">ELIMINADO</span> 13º-16º → Fuera</span>
+        </div>`;
+    tablaModal.classList.add('active');
+}
+
+// ----------------------------------------------------------------
+// PLAYOFFS (5º al 12º → 4 partidos → 4 pasan a cuartos)
+// ----------------------------------------------------------------
+btnPlayoffs.addEventListener('click', () => {
+    mostrarPlayoffs();
+    btnPlayoffs.style.display = 'none';
+    btnBracket.style.display = 'inline-block';
+});
 
 function mostrarPlayoffs() {
     container.innerHTML = '';
-    document.getElementById("btn-tabla-flotante")?.remove();
+    document.getElementById('btn-tabla-flotante').style.display = 'none';
 
     const ranking = getRanking();
-    // 7º al 14º son índices 6 a 13
-    const zonaPlayoff = ranking.slice(6, 14);
+    const zona = ranking.slice(4,12); // posiciones 5ª a 12ª (índices 4-11)
 
-    // Emparejamientos: 7ºvs14º, 8ºvs13º, 9ºvs12º, 10ºvs11º
-    const cruces = [
-        { t1: zonaPlayoff[0], t2: zonaPlayoff[7], seed1: 7,  seed2: 14 },
-        { t1: zonaPlayoff[1], t2: zonaPlayoff[6], seed1: 8,  seed2: 13 },
-        { t1: zonaPlayoff[2], t2: zonaPlayoff[5], seed1: 9,  seed2: 12 },
-        { t1: zonaPlayoff[3], t2: zonaPlayoff[4], seed1: 10, seed2: 11 },
+    // Emparejamientos: 5ºvs12º, 6ºvs11º, 7ºvs10º, 8ºvs9º
+    playoffsData = [
+        { t1:zona[0].eq, t2:zona[7].eq, seed1:5,  seed2:12, ganador:null, s1:'', s2:'' },
+        { t1:zona[1].eq, t2:zona[6].eq, seed1:6,  seed2:11, ganador:null, s1:'', s2:'' },
+        { t1:zona[2].eq, t2:zona[5].eq, seed1:7,  seed2:10, ganador:null, s1:'', s2:'' },
+        { t1:zona[3].eq, t2:zona[4].eq, seed1:8,  seed2:9,  ganador:null, s1:'', s2:'' },
     ];
 
-    playoffsData = cruces.map(c => ({
-        t1: c.t1.eq, t2: c.t2.eq,
-        seed1: c.seed1, seed2: c.seed2,
-        ganador: null
-    }));
-
-    const wrapper = document.createElement("div");
-    wrapper.className = "playoffs-wrapper";
+    const wrapper = document.createElement('div');
+    wrapper.className = 'playoffs-wrapper';
     wrapper.innerHTML = `
         <h2 class="playoffs-title">FASE PLAYOFF</h2>
-        <div style="font-size:.75rem; text-align:center; color:rgba(255,255,255,0.4); margin-bottom:20px">
-            Doble clic en un partido para introducir resultado
-        </div>
+        <p class="playoffs-subtitle">DOBLE CLIC PARA INTRODUCIR RESULTADO</p>
         <div class="playoffs-grid" id="playoffs-grid"></div>`;
 
     const grid = wrapper.querySelector('#playoffs-grid');
-    playoffsData.forEach((pd, i) => {
-        const matchEl = crearMatchPlayoff(pd, i);
-        grid.appendChild(matchEl);
+    playoffsData.forEach((pd,i) => {
+        const el = document.createElement('div');
+        el.className = 'playoff-match';
+        el.id = `plmatch-${i}`;
+        renderPlayoffMatch(el, pd);
+        el.ondblclick = () => abrirModalResultado(
+            pd.t1, pd.t2, pd.s1, pd.s2,
+            (s1,s2) => {
+                pd.s1=s1; pd.s2=s2;
+                pd.ganador = s1>s2 ? pd.t1 : pd.t2;
+                renderPlayoffMatch(el, pd);
+                el.classList.add('done');
+            }
+        );
+        grid.appendChild(el);
     });
 
     container.appendChild(wrapper);
 }
 
-function crearMatchPlayoff(pd, idx) {
-    const el = document.createElement("div");
-    el.className = "playoff-match";
-    el.id = `playoff-${idx}`;
-    renderMatchPlayoffHTML(el, pd);
-    el.ondblclick = () => abrirModalPlayoff(idx);
-    return el;
-}
-
-function renderMatchPlayoffHTML(el, pd) {
-    const ganadorNombre = pd.ganador?.nombre;
-    const t1Loser = ganadorNombre && ganadorNombre !== pd.t1.nombre;
-    const t2Loser = ganadorNombre && ganadorNombre !== pd.t2.nombre;
-
+function renderPlayoffMatch(el, pd) {
+    const gNom = pd.ganador?.nombre;
+    const t1L = gNom && gNom!==pd.t1.nombre;
+    const t2L = gNom && gNom!==pd.t2.nombre;
     el.innerHTML = `
-        <div class="playoff-team ${t1Loser ? 'loser' : ''}">
-            <div>
-                <div class="playoff-seed">#${pd.seed1}</div>
-                <img src="${pd.t1.logo}" onerror="this.style.display='none'">
-            </div>
+        <div class="playoff-team ${t1L?'loser':''}">
+            <div><span class="playoff-seed">#${pd.seed1}</span>
+            <img src="${pd.t1.logo}" onerror="this.style.display='none'"></div>
             <span>${pd.t1.nombre}</span>
         </div>
         <div class="playoff-vs">VS</div>
-        <div class="playoff-team ${t2Loser ? 'loser' : ''}" style="flex-direction:row-reverse; text-align:right">
-            <div>
-                <div class="playoff-seed">#${pd.seed2}</div>
-                <img src="${pd.t2.logo}" onerror="this.style.display='none'">
-            </div>
+        <div class="playoff-team ${t2L?'loser':''}" style="flex-direction:row-reverse;text-align:right">
+            <div><span class="playoff-seed">#${pd.seed2}</span>
+            <img src="${pd.t2.logo}" onerror="this.style.display='none'"></div>
             <span>${pd.t2.nombre}</span>
         </div>
-        ${pd.ganador ? `<div class="playoff-result">✓</div>` : '<div class="playoff-result" style="color:rgba(255,255,255,0.2)">—</div>'}`;
+        <div class="playoff-done-badge">${pd.ganador?'✓':'—'}</div>`;
 }
 
-function abrirModalPlayoff(idx) {
-    const pd = playoffsData[idx];
+// ----------------------------------------------------------------
+// MODAL RESULTADO GENÉRICO
+// ----------------------------------------------------------------
+function abrirModalResultado(eq1, eq2, s1prev, s2prev, onConfirm) {
     modalCard.innerHTML = `
-        <h2 style="font-family:'BertholdBlock'; text-align:center; color:var(--omen-cyan); margin-bottom:20px">
-            PLAYOFF — #${pd.seed1} vs #${pd.seed2}
-        </h2>
-        <div class="fila-partido">
-            <div style="text-align:center">
-                <img src="${pd.t1.logo}" style="width:80px; height:80px; object-fit:contain" onerror="this.style.display='none'">
-                <div style="font-family:'BertholdBlock'; font-size:.85rem; margin-top:5px">${pd.t1.nombre}</div>
+        <h2 style="font-family:'BertholdBlock'; text-align:center; color:var(--omen-cyan); margin-bottom:20px; font-size:1.3rem; letter-spacing:3px">RESULTADO</h2>
+        <div class="modal-score-row">
+            <div class="eq-blk">
+                <img src="${eq1.logo}" onerror="this.style.display='none'">
+                <div class="eq-name">${eq1.nombre}</div>
             </div>
-            <input type="number" id="pl-sc1" class="input-score" value="${pd.sc1 || ''}" min="0" placeholder="0">
-            <span style="font-size:2.5rem; font-family:'BertholdBlock'; color:var(--omen-purple)">-</span>
-            <input type="number" id="pl-sc2" class="input-score" value="${pd.sc2 || ''}" min="0" placeholder="0">
-            <div style="text-align:center">
-                <img src="${pd.t2.logo}" style="width:80px; height:80px; object-fit:contain" onerror="this.style.display='none'">
-                <div style="font-family:'BertholdBlock'; font-size:.85rem; margin-top:5px">${pd.t2.nombre}</div>
+            <input type="number" id="ms1" class="input-score" value="${s1prev}" min="0" placeholder="0">
+            <span style="font-family:'BertholdBlock';font-size:2rem;color:var(--omen-purple)">—</span>
+            <input type="number" id="ms2" class="input-score" value="${s2prev}" min="0" placeholder="0">
+            <div class="eq-blk">
+                <img src="${eq2.logo}" onerror="this.style.display='none'">
+                <div class="eq-name">${eq2.nombre}</div>
             </div>
         </div>
-        <button class="btn-valorant" id="save-playoff" style="width:100%"><span class="btn-content">CONFIRMAR GANADOR</span></button>`;
-
-    modal.classList.add("active");
-
-    document.getElementById("save-playoff").onclick = () => {
-        const s1 = parseInt(document.getElementById("pl-sc1").value) || 0;
-        const s2 = parseInt(document.getElementById("pl-sc2").value) || 0;
-        if (s1 === s2) { alert("No puede haber empate."); return; }
-
-        pd.sc1 = s1; pd.sc2 = s2;
-        pd.ganador = s1 > s2 ? pd.t1 : pd.t2;
-
-        const el = document.getElementById(`playoff-${idx}`);
-        renderMatchPlayoffHTML(el, pd);
-        el.classList.add("done");
-
-        modal.classList.remove("active");
+        <button class="btn-valorant" id="ms-confirm" style="width:100%"><span class="btn-content">CONFIRMAR</span></button>`;
+    modal.classList.add('active');
+    modalCard.querySelector('#ms-confirm').onclick = () => {
+        const s1 = parseInt(modalCard.querySelector('#ms1').value);
+        const s2 = parseInt(modalCard.querySelector('#ms2').value);
+        if(isNaN(s1)||isNaN(s2)||s1===s2){ alert('Resultado inválido (no puede haber empate).'); return; }
+        modal.classList.remove('active');
+        onConfirm(s1,s2);
     };
 }
 
-// ============================================================
-// 10. FASE FINAL — BRACKET (Cuartos, Semis, Final)
-// ============================================================
-btnBracket.onclick = () => {
-    mostrarBracket();
+// ----------------------------------------------------------------
+// BRACKET FINAL (Cuartos → Semis → Final)
+// ----------------------------------------------------------------
+btnBracket.addEventListener('click', () => {
+    iniciarBracket();
     btnBracket.style.display = 'none';
-};
+});
 
-function mostrarBracket() {
-    container.innerHTML = '';
+function iniciarBracket() {
     const ranking = getRanking();
+    const top4 = ranking.slice(0,4).map(r=>r.eq);
+    const gpWinners = playoffsData.map(pd => pd.ganador || { nombre:'TBD', logo:'' });
 
-    // Top 6 directos (índices 0-5)
-    const top6 = ranking.slice(0, 6).map(r => r.eq);
-    // Ganadores de playoffs (4 equipos)
-    const ganadoresPlayoff = playoffsData.map(pd => pd.ganador || { nombre: 'TBD', logo: '' });
-
-    // 10 equipos en cuartos de final
-    // Top 6 tienen bye (esperan en semis/cuartos según orden)
-    // Organización: 
-    // - 4 partidos de cuartos: ganadores playoff vs peores del top6
-    //   QF1: Ganador PO1 vs #6 | QF2: Ganador PO2 vs #5
-    //   QF3: Ganador PO3 vs #4 | QF4: Ganador PO4 vs #3
-    // - #1, #2 esperan en Semis (bye directo)
-
+    // Cuartos de final (4 partidos):
+    // QF1: #1 vs GP4  |  QF2: #2 vs GP3
+    // QF3: #3 vs GP2  |  QF4: #4 vs GP1
     bracketData = {
-        cuartos: [
-            { t1: ganadoresPlayoff[0], t2: top6[5], ganador: null, id: 'qf0' },
-            { t1: ganadoresPlayoff[1], t2: top6[4], ganador: null, id: 'qf1' },
-            { t1: ganadoresPlayoff[2], t2: top6[3], ganador: null, id: 'qf2' },
-            { t1: ganadoresPlayoff[3], t2: top6[2], ganador: null, id: 'qf3' },
+        qf: [
+            { id:'qf0', t1:top4[0], t2:gpWinners[3], s1:'', s2:'', ganador:null },
+            { id:'qf1', t1:top4[1], t2:gpWinners[2], s1:'', s2:'', ganador:null },
+            { id:'qf2', t1:top4[2], t2:gpWinners[1], s1:'', s2:'', ganador:null },
+            { id:'qf3', t1:top4[3], t2:gpWinners[0], s1:'', s2:'', ganador:null },
         ],
-        semis: [
-            { t1: top6[0], t2: { nombre: 'TBD', logo: '' }, ganador: null, id: 'sf0', byeT1: true },
-            { t1: top6[1], t2: { nombre: 'TBD', logo: '' }, ganador: null, id: 'sf1', byeT1: true },
-            { t1: { nombre: 'TBD', logo: '' }, t2: { nombre: 'TBD', logo: '' }, ganador: null, id: 'sf2' },
-            { t1: { nombre: 'TBD', logo: '' }, t2: { nombre: 'TBD', logo: '' }, ganador: null, id: 'sf3' },
+        sf: [
+            { id:'sf0', t1:{nombre:'TBD',logo:''}, t2:{nombre:'TBD',logo:''}, s1:'', s2:'', ganador:null },
+            { id:'sf1', t1:{nombre:'TBD',logo:''}, t2:{nombre:'TBD',logo:''}, s1:'', s2:'', ganador:null },
         ],
-        final: [
-            { t1: { nombre: 'TBD', logo: '' }, t2: { nombre: 'TBD', logo: '' }, ganador: null, id: 'fn0' }
+        fn: [
+            { id:'fn0', t1:{nombre:'TBD',logo:''}, t2:{nombre:'TBD',logo:''}, s1:'', s2:'', ganador:null },
         ]
     };
-
-    // Semis: #1 espera ganador QF0, #2 espera ganador QF1, luego QF2 vs QF3
-    // -> SF0: #1 vs W(QF0), SF1: #2 vs W(QF1), SF2: W(QF2) vs W(QF3)
-    // -> Final: W(SF0) vs W(SF1), W(SF2) vs W(SF3) — en realidad semis son 4, final 2
 
     renderBracket();
 }
@@ -761,190 +626,157 @@ function mostrarBracket() {
 function renderBracket() {
     container.innerHTML = '';
 
-    const scroll = document.createElement("div");
-    scroll.className = "bracket-scroll";
+    const outer = document.createElement('div');
+    outer.className = 'bracket-outer';
 
-    const bc = document.createElement("div");
-    bc.className = "bracket-container";
+    const bc = document.createElement('div');
+    bc.className = 'bracket-container';
 
-    // Columna Cuartos
-    bc.appendChild(crearColumnaBracket("CUARTOS", bracketData.cuartos, 'qf'));
-    // Columna Semis
-    bc.appendChild(crearColumnaBracket("SEMIS", bracketData.semis, 'sf'));
+    // Columna QF
+    const colQF = crearColumna('CUARTOS DE FINAL', bracketData.qf, 'qf');
+    // Columna SF
+    const colSF = crearColumna('SEMIFINALES', bracketData.sf, 'sf');
     // Columna Final
-    bc.appendChild(crearColumnaBracket("FINAL", bracketData.final, 'fn'));
+    const colFN = crearColumna('⚡ GRAN FINAL', bracketData.fn, 'fn');
 
-    scroll.appendChild(bc);
-    container.appendChild(scroll);
+    bc.appendChild(colQF);
+    bc.appendChild(colSF);
+    bc.appendChild(colFN);
+
+    outer.appendChild(bc);
+    container.appendChild(outer);
 }
 
-function crearColumnaBracket(titulo, partidos, prefix) {
-    const col = document.createElement("div");
-    col.className = "bracket-column";
-    col.id = `col-${prefix}`;
+function crearColumna(titulo, partidos, fase) {
+    const col = document.createElement('div');
+    col.className = 'bracket-column';
+    col.id = `col-${fase}`;
 
-    const tit = document.createElement("div");
-    tit.className = "bracket-col-title";
+    const tit = document.createElement('div');
+    tit.className = 'bracket-col-title';
     tit.textContent = titulo;
     col.appendChild(tit);
 
+    // Espaciado vertical para alinear con la siguiente columna
+    const alturas = { qf: [0,1,2,3], sf: [0.5, 2.5], fn: [1.5] };
+    const gaps    = { qf: 15, sf: 15, fn: 15 };
+    const boxH    = 100; // altura aprox de un match-box en px
+
     partidos.forEach((p, i) => {
-        const box = crearMatchBox(p, prefix, i);
+        const box = crearMatchBox(p, fase, i);
         col.appendChild(box);
     });
 
     return col;
 }
 
-function crearMatchBox(p, prefix, idx) {
-    const box = document.createElement("div");
-    box.className = "match-box";
-    box.id = `match-${p.id}`;
+function crearMatchBox(p, fase, idx) {
+    const box = document.createElement('div');
+    box.className = 'match-box' + (fase==='fn'?' final-box':'');
+    box.id = `mb-${p.id}`;
 
-    const esTBD = p.t1.nombre === 'TBD' || p.t2.nombre === 'TBD';
-    if (esTBD) box.classList.add("tbd");
+    const esTBD = p.t1.nombre==='TBD' || p.t2.nombre==='TBD';
+    if(esTBD) box.classList.add('tbd');
 
-    renderMatchBoxHTML(box, p);
+    renderMatchBox(box, p);
 
-    if (!esTBD) {
-        box.ondblclick = () => abrirModalBracket(p, prefix, idx);
+    if(!esTBD) {
+        box.ondblclick = () => {
+            abrirModalResultado(p.t1, p.t2, p.s1, p.s2, (s1,s2) => {
+                p.s1=s1; p.s2=s2;
+                p.ganador = s1>s2 ? p.t1 : p.t2;
+                renderMatchBox(box, p);
+                avanzarBracket(fase, idx, p.ganador);
+                if(fase==='fn') setTimeout(()=>mostrarCampeon(p.ganador.nombre, p.ganador.logo), 400);
+            });
+        };
     }
 
     return box;
 }
 
-function renderMatchBoxHTML(box, p) {
-    const ganadorNombre = p.ganador?.nombre;
-    const t1Loser = ganadorNombre && ganadorNombre !== p.t1.nombre;
-    const t2Loser = ganadorNombre && ganadorNombre !== p.t2.nombre;
-
-    const teamRow = (eq, loser) => {
-        const imgHTML = eq.logo
-            ? `<img src="${eq.logo}" onerror="this.style.display='none'">`
-            : `<div style="width:30px; height:30px; background:#222; border-radius:4px"></div>`;
-        return `<div class="match-team-row ${loser ? 'team-perdedor' : ''}">
-            ${imgHTML}
-            <span>${eq.nombre}</span>
-        </div>`;
-    };
-
+function renderMatchBox(box, p) {
+    const g = p.ganador?.nombre;
+    const t1L = g && g!==p.t1.nombre;
+    const t2L = g && g!==p.t2.nombre;
+    const img = eq => eq.logo ? `<img src="${eq.logo}" onerror="this.style.display='none'">` : `<div style="width:28px;height:28px;background:#222;border-radius:4px"></div>`;
     box.innerHTML = `
-        ${teamRow(p.t1, t1Loser)}
-        <div class="vs-line"></div>
-        ${teamRow(p.t2, t2Loser)}
-        ${p.sc1 !== undefined ? `<div style="text-align:center; font-size:.65rem; color:var(--omen-purple); margin-top:5px; font-family:'BertholdBlock'">${p.sc1} — ${p.sc2}</div>` : ''}`;
-}
-
-function abrirModalBracket(p, prefix, idx) {
-    modalCard.innerHTML = `
-        <h2 style="font-family:'BertholdBlock'; text-align:center; color:var(--omen-cyan); margin-bottom:20px">
-            ${['qf','sf'].includes(prefix) ? (prefix === 'qf' ? 'CUARTOS' : 'SEMIFINAL') : 'GRAN FINAL'}
-        </h2>
-        <div class="fila-partido">
-            <div style="text-align:center">
-                <img src="${p.t1.logo}" style="width:80px; height:80px; object-fit:contain" onerror="this.style.display='none'">
-                <div style="font-family:'BertholdBlock'; font-size:.85rem; margin-top:5px">${p.t1.nombre}</div>
-            </div>
-            <input type="number" id="bk-sc1" class="input-score" value="${p.sc1 !== undefined ? p.sc1 : ''}" min="0" placeholder="0">
-            <span style="font-size:2.5rem; font-family:'BertholdBlock'; color:var(--omen-purple)">-</span>
-            <input type="number" id="bk-sc2" class="input-score" value="${p.sc2 !== undefined ? p.sc2 : ''}" min="0" placeholder="0">
-            <div style="text-align:center">
-                <img src="${p.t2.logo}" style="width:80px; height:80px; object-fit:contain" onerror="this.style.display='none'">
-                <div style="font-family:'BertholdBlock'; font-size:.85rem; margin-top:5px">${p.t2.nombre}</div>
-            </div>
+        <div class="mtr ${t1L?'loser':''}">
+            ${img(p.t1)}
+            <span class="mtr-name">${p.t1.nombre}</span>
+            ${g?`<span class="mtr-score">${p.s1}</span>`:''}
         </div>
-        <button class="btn-valorant" id="save-bracket" style="width:100%"><span class="btn-content">CONFIRMAR RESULTADO</span></button>`;
-
-    modal.classList.add("active");
-
-    document.getElementById("save-bracket").onclick = () => {
-        const s1 = parseInt(document.getElementById("bk-sc1").value);
-        const s2 = parseInt(document.getElementById("bk-sc2").value);
-        if (isNaN(s1) || isNaN(s2) || s1 === s2) { alert("Introduce un resultado válido (sin empate)."); return; }
-
-        p.sc1 = s1; p.sc2 = s2;
-        p.ganador = s1 > s2 ? p.t1 : p.t2;
-        p.perdedor = s1 > s2 ? p.t2 : p.t1;
-
-        // Avanzar ganador
-        avanzarGanadorBracket(p, prefix, idx);
-
-        const box = document.getElementById(`match-${p.id}`);
-        renderMatchBoxHTML(box, p);
-
-        modal.classList.remove("active");
-
-        // ¿Es la final?
-        if (prefix === 'fn') {
-            setTimeout(() => mostrarCampeon(p.ganador.nombre, p.ganador.logo), 500);
-        }
-    };
+        <div class="vs-line"></div>
+        <div class="mtr ${t2L?'loser':''}">
+            ${img(p.t2)}
+            <span class="mtr-name">${p.t2.nombre}</span>
+            ${g?`<span class="mtr-score">${p.s2}</span>`:''}
+        </div>`;
 }
 
-function avanzarGanadorBracket(p, prefix, idx) {
-    const ganador = p.ganador;
+function avanzarBracket(fase, idx, ganador) {
+    // QF → SF: QF0→SF0.t1, QF1→SF0.t2, QF2→SF1.t1, QF3→SF1.t2
+    // SF → FN: SF0→FN0.t1, SF1→FN0.t2
+    let destFase, destIdx, destSlot;
 
-    if (prefix === 'qf') {
-        // QF0 ganador → SF0 t2, QF1 → SF1 t2, QF2 → SF2 t1, QF3 → SF2 t2
-        const mapeo = { 0: ['sf',0,'t2'], 1: ['sf',1,'t2'], 2: ['sf',2,'t1'], 3: ['sf',2,'t2'] };
-        const [destPrefix, destIdx, destTeam] = mapeo[idx];
-        bracketData.semis[destIdx][destTeam] = ganador;
-        actualizarMatchBox('sf', destIdx);
-    } else if (prefix === 'sf') {
-        // SF0 → Final t1, SF1 → Final t2, SF2 → Final extra (si hay más de 2 semis)
-        // Con 4 semis: SF0 vs SF1 → Final t1/t2, SF2 no tiene más (bracket de 10)
-        // Simplificando: 
-        // SF0 ganador → Final t1
-        // SF1 ganador → Final t2
-        const mapeo = { 0: 't1', 1: 't2', 2: null, 3: null };
-        const dest = mapeo[idx];
-        if (dest) {
-            bracketData.final[0][dest] = ganador;
-            actualizarMatchBox('fn', 0);
-        }
+    if(fase==='qf') {
+        destFase='sf';
+        destIdx = idx<2 ? 0 : 1;
+        destSlot = idx%2===0 ? 't1' : 't2';
+    } else if(fase==='sf') {
+        destFase='fn'; destIdx=0;
+        destSlot = idx===0 ? 't1' : 't2';
+    } else return;
+
+    const arr = destFase==='sf' ? bracketData.sf : bracketData.fn;
+    arr[destIdx][destSlot] = ganador;
+
+    // Re-renderizar el match destino
+    const destBox = document.getElementById(`mb-${arr[destIdx].id}`);
+    if(!destBox) return;
+    renderMatchBox(destBox, arr[destIdx]);
+
+    // Si ya tiene los 2 equipos, activar dblclick
+    const p = arr[destIdx];
+    if(p.t1.nombre!=='TBD' && p.t2.nombre!=='TBD') {
+        destBox.classList.remove('tbd');
+        destBox.ondblclick = () => {
+            abrirModalResultado(p.t1, p.t2, p.s1, p.s2, (s1,s2) => {
+                p.s1=s1; p.s2=s2;
+                p.ganador = s1>s2 ? p.t1 : p.t2;
+                renderMatchBox(destBox, p);
+                avanzarBracket(destFase, destIdx, p.ganador);
+                if(destFase==='fn') setTimeout(()=>mostrarCampeon(p.ganador.nombre, p.ganador.logo), 400);
+            });
+        };
     }
 }
 
-function actualizarMatchBox(prefix, idx) {
-    const partidos = prefix === 'qf' ? bracketData.cuartos : prefix === 'sf' ? bracketData.semis : bracketData.final;
-    const p = partidos[idx];
-    const box = document.getElementById(`match-${p.id}`);
-    if (!box) return;
-
-    renderMatchBoxHTML(box, p);
-    const esTBD = p.t1.nombre === 'TBD' || p.t2.nombre === 'TBD';
-    if (!esTBD) {
-        box.classList.remove("tbd");
-        box.ondblclick = () => abrirModalBracket(p, prefix, idx);
-    }
-}
-
-// ============================================================
-// 11. PANTALLA CAMPEÓN
-// ============================================================
+// ----------------------------------------------------------------
+// CAMPEÓN
+// ----------------------------------------------------------------
 function mostrarCampeon(nombre, logo) {
-    const overlay = document.createElement('div');
-    overlay.className = 'champion-overlay';
-    overlay.innerHTML = `
+    const ov = document.createElement('div');
+    ov.className = 'champion-overlay';
+    ov.innerHTML = `
         <h1 class="champion-title">¡CAMPEÓN VOL. II!</h1>
         <img src="${logo}" class="champion-logo" onerror="this.style.display='none'">
         <h2 class="champion-name">${nombre}</h2>
-        <button class="btn-valorant" onclick="location.reload()" style="margin-top: 50px;">
+        <button class="btn-valorant" onclick="location.reload()" style="margin-top:50px">
             <span class="btn-content">FINALIZAR TORNEO</span>
         </button>`;
-    document.body.appendChild(overlay);
-
-    if (audioChampions) { audioChampions.currentTime = 0; audioChampions.play(); }
-    setTimeout(() => overlay.classList.add('active'), 100);
+    document.body.appendChild(ov);
+    if(audioChamp){ audioChamp.currentTime=0; audioChamp.play(); }
+    setTimeout(()=>ov.classList.add('active'), 100);
 }
 
-// ============================================================
-// 12. UTILS
-// ============================================================
+// ----------------------------------------------------------------
+// UTILS
+// ----------------------------------------------------------------
 function shuffle(arr) {
-    for (let i = arr.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [arr[i], arr[j]] = [arr[j], arr[i]];
+    for(let i=arr.length-1;i>0;i--){
+        const j=Math.floor(Math.random()*(i+1));
+        [arr[i],arr[j]]=[arr[j],arr[i]];
     }
     return arr;
 }
