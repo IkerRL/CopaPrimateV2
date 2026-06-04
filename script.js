@@ -41,11 +41,16 @@ const equipos = Object.entries(GRUPOS).flatMap(([g, lista]) =>
 const getEq  = nombre => equipos.find(e => e.nombre === nombre);
 const letras = ['A','B','C','D'];
 
-// Calendario: array de { t1, t2 } generado tras el sorteo
-let calendario = [];           // [{ t1:'nombre', t2:'nombre' }]
-let resultados = {};           // key 'A|B' -> { s1, s2 }  (s1=goles t1, s2=goles t2)
-let playoffsData = [];         // [{ t1, t2, ganador, s1, s2 }]
+// Calendario oficial
+let calendario = [];           
+let resultados = {};           
+let playoffsData = [];         
 let bracketData  = null;
+
+// Memoria para la nueva lógica del sorteo
+let calendarioGlobalSecreto = [];
+let equiposSorteados = new Set();
+let partidosAgregadosUI = new Set();
 
 // ----------------------------------------------------------------
 // DOM
@@ -94,7 +99,12 @@ function renderInicial() {
 renderInicial();
 
 // ----------------------------------------------------------------
-// SORTEO DE ENFRENTAMIENTOS
+// CLAVE DE PARTIDO
+// ----------------------------------------------------------------
+function clave(a,b) { return [a,b].sort().join('|'); }
+
+// ----------------------------------------------------------------
+// NUEVO SORTEO DE ENFRENTAMIENTOS (1 A 1 DINÁMICO)
 // ----------------------------------------------------------------
 btnSorteo.addEventListener('click', () => {
     sorteoOverlay.classList.add('active');
@@ -102,147 +112,156 @@ btnSorteo.addEventListener('click', () => {
 });
 
 function prepararSorteo() {
-    // Mostrar grupos en el display
     const display = document.getElementById('sorteo-grupos-display');
     display.innerHTML = '';
+    
+    // Reiniciar variables
+    equiposSorteados.clear();
+    partidosAgregadosUI.clear();
+    calendario = [];
+    resultados = {};
+    
+    // Se pre-calculan los emparejamientos perfectos respetando reglas Vol. II
+    calendarioGlobalSecreto = generarEmparejamientos(); 
+
+    // Renderizar los grupos en el overlay
     letras.forEach(g => {
         const col = document.createElement('div');
         col.className = `sg-col ${g}`;
         col.id = `sg-col-${g}`;
         col.innerHTML = `<div class="sg-col-title">GRUPO ${g}</div>`;
+        
         GRUPOS[g].forEach(eq => {
             const chip = document.createElement('div');
             chip.className = 'sg-team';
             chip.id = `sg-team-${eq.nombre.replace(/\s/g,'_')}`;
             chip.innerHTML = `<img src="${eq.logo}" onerror="this.style.display='none'"><span>${eq.nombre}</span>`;
+            
+            // Evento click a cada equipo para revelar sus partidos
+            chip.addEventListener('click', () => sortearRivalesDe(eq.nombre, chip));
             col.appendChild(chip);
         });
         display.appendChild(col);
     });
 
     document.getElementById('sorteo-resultado').innerHTML = '';
-    document.getElementById('sorteo-info').textContent = 'Pulsa el balón para sortear';
+    document.getElementById('sorteo-info').textContent = 'HAZ CLIC EN UN EQUIPO PARA REVELAR SUS 4 PARTIDOS';
     document.getElementById('sorteo-match-reveal').textContent = '';
     document.getElementById('btn-cerrar-sorteo').style.display = 'none';
 
-    // Generar todos los emparejamientos necesarios
-    const emparejamientos = generarEmparejamientos();
-    calendar_pendiente = [...emparejamientos];
-    idx_sorteo = 0;
-    total_sorteo = emparejamientos.length;
-
+    // Ocultar la bola de la versión anterior
     const ball = document.getElementById('sorteo-ball');
-    ball.textContent = '▶';
-    ball.style.cursor = 'pointer';
-    ball.onclick = null;
-    ball.onclick = () => sortearSiguiente(ball, emparejamientos);
+    if (ball) ball.style.display = 'none';
 }
 
-let calendar_pendiente = [];
-let idx_sorteo = 0;
-let total_sorteo = 0;
-let sorteo_animando = false;
-
 function generarEmparejamientos() {
-    // Para cada grupo, necesita:
-    // - 1 rival del mismo grupo (sorteo interno)
-    // - 1 rival de cada uno de los otros 3 grupos
-    // Total: 4 partidos por equipo, 32 partidos en total / 2 = 16 partidos únicos... 
-    // Con 4 grupos de 4: cada equipo juega 4 partidos = 4*16/2 = 32 únicos
-
     const partidos = [];
     const vistos = new Set();
-
     const add = (a, b) => {
-        const key = [a,b].sort().join('|');
+        const key = clave(a,b);
         if (!vistos.has(key)) { vistos.add(key); partidos.push({t1:a, t2:b}); }
     };
 
-    // Partidos dentro del mismo grupo (todos contra todos parcial: 1 partido por par)
-    // Barajamos cada grupo y emparejamos: 0v1, 2v3
     letras.forEach(g => {
         const arr = shuffle([...GRUPOS[g].map(e=>e.nombre)]);
-        add(arr[0], arr[1]);
-        add(arr[2], arr[3]);
+        add(arr[0], arr[1]); add(arr[2], arr[3]);
     });
 
-    // Partidos entre grupos distintos: cada equipo vs 1 de cada otro grupo
-    // A vs B, A vs C, A vs D, B vs C, B vs D, C vs D
     const pares = [['A','B'],['A','C'],['A','D'],['B','C'],['B','D'],['C','D']];
     pares.forEach(([g1,g2]) => {
         const arr1 = shuffle([...GRUPOS[g1].map(e=>e.nombre)]);
         const arr2 = shuffle([...GRUPOS[g2].map(e=>e.nombre)]);
-        // Emparejamos 1 a 1 (4 equipos vs 4 equipos → 4 partidos)
         arr1.forEach((t,i) => add(t, arr2[i]));
     });
-
     return shuffle(partidos);
 }
 
-function sortearSiguiente(ball, lista) {
-    if (sorteo_animando) return;
-    if (idx_sorteo >= lista.length) return;
-
-    sorteo_animando = true;
-    const match = lista[idx_sorteo];
-    const eq1 = getEq(match.t1);
-    const eq2 = getEq(match.t2);
-    const infoEl = document.getElementById('sorteo-info');
-    const revealEl = document.getElementById('sorteo-match-reveal');
-
-    // Resaltar equipos en el panel
-    document.querySelectorAll('.sg-team').forEach(el => el.classList.remove('highlighted'));
-    const id1 = `sg-team-${match.t1.replace(/\s/g,'_')}`;
-    const id2 = `sg-team-${match.t2.replace(/\s/g,'_')}`;
-
-    ball.classList.add('spinning');
-    ball.textContent = '...';
-    infoEl.textContent = 'SORTEANDO...';
-    revealEl.textContent = '';
+function sortearRivalesDe(equipoNombre, chipElement) {
+    if (equiposSorteados.has(equipoNombre)) return; 
+    
     try { audioMono.currentTime=0; audioMono.play(); } catch(e) {}
 
-    setTimeout(() => {
-        ball.classList.remove('spinning');
-        ball.textContent = `${eq1.grupo}v${eq2.grupo}`;
-        infoEl.textContent = `PARTIDO ${idx_sorteo+1} / ${total_sorteo}`;
-        revealEl.textContent = `${match.t1} ⚡ ${match.t2}`;
+    // Buscar los partidos precalculados para este equipo
+    const misPartidos = calendarioGlobalSecreto.filter(p => p.t1 === equipoNombre || p.t2 === equipoNombre);
+    const eq = getEq(equipoNombre);
 
-        document.getElementById(id1)?.classList.add('highlighted');
-        document.getElementById(id2)?.classList.add('highlighted');
+    // Generar la UI interna del modal
+    let htmlRivales = misPartidos.map(match => {
+        const rivalNombre = match.t1 === equipoNombre ? match.t2 : match.t1;
+        const rival = getEq(rivalNombre);
+        return `
+            <div style="background:rgba(255,255,255,0.05); padding:10px 20px; border-radius:10px; display:flex; justify-content: space-between; align-items:center; border: 1px solid var(--card-border);">
+                <span style="font-size:1.2rem; font-family:'BertholdBlock';">${rival.nombre}</span>
+                <div style="display:flex; align-items:center; gap:15px;">
+                    <span class="grupo-badge ${rival.grupo}" style="position:static; font-size:0.8rem; padding:4px 8px;">G${rival.grupo}</span>
+                    <img src="${rival.logo}" style="width:40px; height:40px; object-fit:contain;">
+                </div>
+            </div>
+        `;
+    }).join('');
 
-        // Añadir a lista de resultados
+    modalCard.innerHTML = `
+        <div style="display:flex; flex-direction:column; align-items:center; gap:20px;">
+            <img src="${eq.logo}" style="width:120px; height:120px; object-fit:contain">
+            <h2 style="font-family:'BertholdBlock'; font-size:2.5rem; color:var(--omen-cyan); text-align:center; margin-bottom: 0;">
+                ${eq.nombre}
+            </h2>
+            <h3 style="color:white; letter-spacing:2px; font-size:1rem; margin-top:-10px;">ENFRENTAMIENTOS ASIGNADOS</h3>
+            
+            <div style="width:100%; display:flex; flex-direction:column; gap:10px; margin-top: 10px;">
+                ${htmlRivales}
+            </div>
+            
+            <button class="btn-valorant" id="btnCerrarSorteoModal" style="width:100%; margin-top:20px;">
+                <span class="btn-content">CONFIRMAR Y GUARDAR</span>
+            </button>
+        </div>
+    `;
+    
+    modal.classList.add("active");
+
+    // Al confirmar, se guardan los partidos bidireccionalmente
+    document.getElementById('btnCerrarSorteoModal').onclick = () => {
+        modal.classList.remove("active");
+        
+        equiposSorteados.add(equipoNombre);
+        chipElement.style.borderColor = "var(--omen-cyan)";
+        chipElement.style.boxShadow = "0 0 15px var(--omen-glow)";
+        chipElement.style.opacity = "0.7"; 
+
         const resEl = document.getElementById('sorteo-resultado');
-        const item = document.createElement('div');
-        item.className = 'sorteo-match-item';
-        item.innerHTML = `
-            <img src="${eq1.logo}" onerror="this.style.display='none'">
-            <span>${match.t1}</span>
-            <span class="vs-badge">VS</span>
-            <span>${match.t2}</span>
-            <img src="${eq2.logo}" onerror="this.style.display='none'">
-            <span class="grupo-vs">G${eq1.grupo} · G${eq2.grupo}</span>`;
-        resEl.appendChild(item);
-        setTimeout(() => item.classList.add('visible'), 50);
+        
+        misPartidos.forEach(match => {
+            const k = clave(match.t1, match.t2);
+            // Evitar agregar partidos duplicados al registro oficial si ambos equipos ya fueron cliqueados
+            if (!partidosAgregadosUI.has(k)) {
+                partidosAgregadosUI.add(k);
+                calendario.push(match);
+                resultados[k] = { s1:'', s2:'' };
+
+                const eq1 = getEq(match.t1);
+                const eq2 = getEq(match.t2);
+                const item = document.createElement('div');
+                item.className = 'sorteo-match-item visible';
+                item.innerHTML = `
+                    <img src="${eq1.logo}" onerror="this.style.display='none'">
+                    <span>${match.t1}</span>
+                    <span class="vs-badge">VS</span>
+                    <span>${match.t2}</span>
+                    <img src="${eq2.logo}" onerror="this.style.display='none'">
+                    <span class="grupo-vs">G${eq1.grupo} · G${eq2.grupo}</span>`;
+                resEl.appendChild(item);
+            }
+        });
+        
         resEl.scrollTop = resEl.scrollHeight;
+        document.getElementById('sorteo-info').textContent = `EQUIPOS REVELADOS: ${equiposSorteados.size} / 16`;
 
-        // Guardar en calendario
-        resultados[[match.t1,match.t2].sort().join('|')] = { s1:'', s2:'' };
-        calendario.push(match);
-
-        idx_sorteo++;
-        sorteo_animando = false;
-
-        if (idx_sorteo >= lista.length) {
-            ball.textContent = '✓';
-            ball.style.cursor = 'default';
-            ball.onclick = null;
-            infoEl.textContent = `¡SORTEO COMPLETADO! ${total_sorteo} PARTIDOS`;
-            revealEl.textContent = '';
+        if (equiposSorteados.size === 16) {
             document.getElementById('btn-cerrar-sorteo').style.display = 'block';
-        } else {
-            setTimeout(() => { ball.textContent = '▶'; }, 500);
+            document.getElementById('sorteo-info').textContent = '¡SORTEO COMPLETADO! 32 PARTIDOS REGISTRADOS';
         }
-    }, 800);
+    };
 }
 
 document.getElementById('btn-cerrar-sorteo').addEventListener('click', () => {
@@ -250,7 +269,6 @@ document.getElementById('btn-cerrar-sorteo').addEventListener('click', () => {
     btnSorteo.style.display = 'none';
     btnLiga.style.display = 'inline-block';
 
-    // Botón tabla flotante
     let tf = document.getElementById('btn-tabla-flotante');
     if (!tf) {
         tf = document.createElement('button');
@@ -262,11 +280,6 @@ document.getElementById('btn-cerrar-sorteo').addEventListener('click', () => {
     }
     tf.style.display = 'block';
 });
-
-// ----------------------------------------------------------------
-// CLAVE DE PARTIDO
-// ----------------------------------------------------------------
-function clave(a,b) { return [a,b].sort().join('|'); }
 
 // ----------------------------------------------------------------
 // FASE DE LIGA
@@ -343,8 +356,7 @@ function getWins(nombre) {
         if (!r || r.s1==='' || r.s2==='') return;
         const s1=parseInt(r.s1)||0, s2=parseInt(r.s2)||0;
         if (s1===s2) return;
-        const esT1 = [p.t1,p.t2].sort()[0]===nombre ? (p.t1===nombre) : (p.t1===nombre);
-        // key ordena los nombres, así que t1 en resultados puede no coincidir con key[0]
+        
         const [kA] = k.split('|');
         const esKA = kA===nombre;
         if (esKA && s1>s2) w++;
@@ -382,7 +394,6 @@ function actualizarOrdenGrupo(g, cards, lista) {
 }
 
 function abrirPartidosGrupo(g, cards, lista) {
-    // Partidos donde al menos uno es de este grupo
     const partidos = calendario.filter(p =>
         (getEq(p.t1)?.grupo===g || getEq(p.t2)?.grupo===g)
     );
@@ -488,7 +499,7 @@ function mostrarTabla() {
 }
 
 // ----------------------------------------------------------------
-// PLAYOFFS (5º al 12º → 4 partidos → 4 pasan a cuartos)
+// PLAYOFFS
 // ----------------------------------------------------------------
 btnPlayoffs.addEventListener('click', () => {
     mostrarPlayoffs();
@@ -501,9 +512,8 @@ function mostrarPlayoffs() {
     document.getElementById('btn-tabla-flotante').style.display = 'none';
 
     const ranking = getRanking();
-    const zona = ranking.slice(4,12); // posiciones 5ª a 12ª (índices 4-11)
+    const zona = ranking.slice(4,12);
 
-    // Emparejamientos: 5ºvs12º, 6ºvs11º, 7ºvs10º, 8ºvs9º
     playoffsData = [
         { t1:zona[0].eq, t2:zona[7].eq, seed1:5,  seed2:12, ganador:null, s1:'', s2:'' },
         { t1:zona[1].eq, t2:zona[6].eq, seed1:6,  seed2:11, ganador:null, s1:'', s2:'' },
@@ -601,9 +611,6 @@ function iniciarBracket() {
     const top4 = ranking.slice(0,4).map(r=>r.eq);
     const gpWinners = playoffsData.map(pd => pd.ganador || { nombre:'TBD', logo:'' });
 
-    // Cuartos de final (4 partidos):
-    // QF1: #1 vs GP4  |  QF2: #2 vs GP3
-    // QF3: #3 vs GP2  |  QF4: #4 vs GP1
     bracketData = {
         qf: [
             { id:'qf0', t1:top4[0], t2:gpWinners[3], s1:'', s2:'', ganador:null },
@@ -632,11 +639,8 @@ function renderBracket() {
     const bc = document.createElement('div');
     bc.className = 'bracket-container';
 
-    // Columna QF
     const colQF = crearColumna('CUARTOS DE FINAL', bracketData.qf, 'qf');
-    // Columna SF
     const colSF = crearColumna('SEMIFINALES', bracketData.sf, 'sf');
-    // Columna Final
     const colFN = crearColumna('⚡ GRAN FINAL', bracketData.fn, 'fn');
 
     bc.appendChild(colQF);
@@ -656,11 +660,6 @@ function crearColumna(titulo, partidos, fase) {
     tit.className = 'bracket-col-title';
     tit.textContent = titulo;
     col.appendChild(tit);
-
-    // Espaciado vertical para alinear con la siguiente columna
-    const alturas = { qf: [0,1,2,3], sf: [0.5, 2.5], fn: [1.5] };
-    const gaps    = { qf: 15, sf: 15, fn: 15 };
-    const boxH    = 100; // altura aprox de un match-box en px
 
     partidos.forEach((p, i) => {
         const box = crearMatchBox(p, fase, i);
@@ -715,8 +714,6 @@ function renderMatchBox(box, p) {
 }
 
 function avanzarBracket(fase, idx, ganador) {
-    // QF → SF: QF0→SF0.t1, QF1→SF0.t2, QF2→SF1.t1, QF3→SF1.t2
-    // SF → FN: SF0→FN0.t1, SF1→FN0.t2
     let destFase, destIdx, destSlot;
 
     if(fase==='qf') {
@@ -731,12 +728,10 @@ function avanzarBracket(fase, idx, ganador) {
     const arr = destFase==='sf' ? bracketData.sf : bracketData.fn;
     arr[destIdx][destSlot] = ganador;
 
-    // Re-renderizar el match destino
     const destBox = document.getElementById(`mb-${arr[destIdx].id}`);
     if(!destBox) return;
     renderMatchBox(destBox, arr[destIdx]);
 
-    // Si ya tiene los 2 equipos, activar dblclick
     const p = arr[destIdx];
     if(p.t1.nombre!=='TBD' && p.t2.nombre!=='TBD') {
         destBox.classList.remove('tbd');
