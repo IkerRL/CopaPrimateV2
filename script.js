@@ -1,7 +1,7 @@
 // ================================================================
 // COPA PRIMATE VOL. II
-// 16 equipos · 4 grupos de 4 · Liga cruzada (4 partidos c/u)
-// Top 4 directo · 5º-12º playoff · 13º-16º eliminados
+// 20 equipos · 4 grupos de 5 · Fase de Grupos (4 partidos c/u)
+// Top 4 directo · 5º-12º playoff · 13º-20º eliminados
 // Bracket: Cuartos → Semis → Final
 // ================================================================
 
@@ -12,24 +12,28 @@ const GRUPOS = {
         { nombre: "Golden Sex",      jugadores: ["Max","Broken","TBD"],              logo: "logo2.png"  },
         { nombre: "Crimson Eclipse", jugadores: ["ReyFhantom","zNyrex","TBD"],       logo: "logo5.png"  },
         { nombre: "GOATS",           jugadores: ["Mica","Marco","TBD"],              logo: "logo12.png" },
+        { nombre: "Equipo A5",       jugadores: ["Jugador1","Jugador2","TBD"],       logo: "logo17.png" } // NUEVO
     ],
     B: [
         { nombre: "Los Akrtona2",    jugadores: ["S3R4X","MasterKira","TBD"],        logo: "logo4.png"  },
         { nombre: "Bloody Fruit",    jugadores: ["MrPain 神","Sandiass21","TBD"],    logo: "logo7.png"  },
         { nombre: "SPIDYBOOBS",      jugadores: ["Sama","Potro","TBD"],              logo: "logo14.png" },
         { nombre: "MUGIWARAS",       jugadores: ["Andreloregon","Jess","TBD"],       logo: "logo15.png" },
+        { nombre: "Equipo B5",       jugadores: ["Jugador1","Jugador2","TBD"],       logo: "logo18.png" } // NUEVO
     ],
     C: [
         { nombre: "TETONES",         jugadores: ["Marrkitosss","Davv","TBD"],        logo: "logo11.png" },
         { nombre: "Al-dedillo VC",   jugadores: ["Xolo","Noavae","TBD"],             logo: "logo3.png"  },
         { nombre: "Konoha Makaca",   jugadores: ["MakaQuillo","MakaIsla","TBD"],     logo: "logo9.png"  },
         { nombre: "Hijas del Kaos",  jugadores: ["Satha","Kaos","TBD"],              logo: "logo8.png"  },
+        { nombre: "Equipo C5",       jugadores: ["Jugador1","Jugador2","TBD"],       logo: "logo19.png" } // NUEVO
     ],
     D: [
         { nombre: "Makaco NinjaPelocho", jugadores: ["Iker","Adri","TBD"],           logo: "logo6.png"  },
         { nombre: "Miaus",           jugadores: ["Kae","Wilson","TBD"],              logo: "logo13.png" },
         { nombre: "Team Obrikat",    jugadores: ["JettDiffs","EGOFack","TBD"],       logo: "logo10.png" },
         { nombre: "Los Simios FC",   jugadores: ["Primate1","Primate2","Primate3"],  logo: "logo16.png" },
+        { nombre: "Equipo D5",       jugadores: ["Jugador1","Jugador2","TBD"],       logo: "logo20.png" } // NUEVO
     ]
 };
 
@@ -121,7 +125,7 @@ function prepararSorteo() {
     calendario = [];
     resultados = {};
     
-    // Se pre-calculan los emparejamientos perfectos respetando reglas Vol. II
+    // Generar emparejamientos: 20 equipos -> Todos contra todos en el grupo
     calendarioGlobalSecreto = generarEmparejamientos(); 
 
     // Renderizar los grupos en el overlay
@@ -149,7 +153,6 @@ function prepararSorteo() {
     document.getElementById('sorteo-match-reveal').textContent = '';
     document.getElementById('btn-cerrar-sorteo').style.display = 'none';
 
-    // Ocultar la bola de la versión anterior
     const ball = document.getElementById('sorteo-ball');
     if (ball) ball.style.display = 'none';
 }
@@ -162,17 +165,16 @@ function generarEmparejamientos() {
         if (!vistos.has(key)) { vistos.add(key); partidos.push({t1:a, t2:b}); }
     };
 
+    // Todos contra todos dentro del mismo grupo
     letras.forEach(g => {
-        const arr = shuffle([...GRUPOS[g].map(e=>e.nombre)]);
-        add(arr[0], arr[1]); add(arr[2], arr[3]);
+        const arr = GRUPOS[g].map(e=>e.nombre);
+        for(let i=0; i<arr.length; i++){
+            for(let j=i+1; j<arr.length; j++){
+                add(arr[i], arr[j]);
+            }
+        }
     });
 
-    const pares = [['A','B'],['A','C'],['A','D'],['B','C'],['B','D'],['C','D']];
-    pares.forEach(([g1,g2]) => {
-        const arr1 = shuffle([...GRUPOS[g1].map(e=>e.nombre)]);
-        const arr2 = shuffle([...GRUPOS[g2].map(e=>e.nombre)]);
-        arr1.forEach((t,i) => add(t, arr2[i]));
-    });
     return shuffle(partidos);
 }
 
@@ -233,7 +235,6 @@ function sortearRivalesDe(equipoNombre, chipElement) {
         
         misPartidos.forEach(match => {
             const k = clave(match.t1, match.t2);
-            // Evitar agregar partidos duplicados al registro oficial si ambos equipos ya fueron cliqueados
             if (!partidosAgregadosUI.has(k)) {
                 partidosAgregadosUI.add(k);
                 calendario.push(match);
@@ -255,11 +256,11 @@ function sortearRivalesDe(equipoNombre, chipElement) {
         });
         
         resEl.scrollTop = resEl.scrollHeight;
-        document.getElementById('sorteo-info').textContent = `EQUIPOS REVELADOS: ${equiposSorteados.size} / 16`;
+        document.getElementById('sorteo-info').textContent = `EQUIPOS REVELADOS: ${equiposSorteados.size} / 20`;
 
-        if (equiposSorteados.size === 16) {
+        if (equiposSorteados.size === 20) {
             document.getElementById('btn-cerrar-sorteo').style.display = 'block';
-            document.getElementById('sorteo-info').textContent = '¡SORTEO COMPLETADO! 32 PARTIDOS REGISTRADOS';
+            document.getElementById('sorteo-info').textContent = '¡SORTEO COMPLETADO! 40 PARTIDOS REGISTRADOS';
         }
     };
 }
@@ -493,7 +494,7 @@ function mostrarTabla() {
         <div style="display:flex;gap:12px;justify-content:center;margin-top:16px;font-size:.7rem;flex-wrap:wrap">
             <span><span class="zona-tag direct">DIRECTO</span> Top 4 → Cuartos</span>
             <span><span class="zona-tag playoff">PLAYOFF</span> 5º-12º → Playoff</span>
-            <span><span class="zona-tag elim">ELIMINADO</span> 13º-16º → Fuera</span>
+            <span><span class="zona-tag elim">ELIMINADO</span> 13º-20º → Fuera</span>
         </div>`;
     tablaModal.classList.add('active');
 }
