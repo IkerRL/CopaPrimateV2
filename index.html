@@ -27,8 +27,8 @@
 <main class="main-content">
     <section class="grid-equipos" id="container-equipos"></section>
     <footer class="footer-controls" id="footer-controls">
-        <button class="btn-valorant" id="btn-sorteo"><span class="btn-content">⚡ SORTEO</span></button>
-        <button class="btn-valorant" id="btn-grupos" style="display:none"><span class="btn-content">FASE DE GRUPOS</span></button>
+        <button class="btn-valorant" id="btn-sorteo"><span class="btn-content">⚡ INICIAR SORTEO</span></button>
+        <button class="btn-valorant" id="btn-liga" style="display:none"><span class="btn-content">FASE DE LIGA</span></button>
         <button class="btn-valorant" id="btn-playoffs" style="display:none"><span class="btn-content">PLAYOFFS</span></button>
         <button class="btn-valorant" id="btn-bracket" style="display:none"><span class="btn-content">FASE FINAL</span></button>
     </footer>
@@ -37,31 +37,34 @@
 <!-- OVERLAY SORTEO -->
 <div id="sorteo-overlay" class="sorteo-overlay">
     <div class="sorteo-panel">
-        <h2 class="sorteo-title">SORTEO DE BOMBOS</h2>
-        <div class="bombos-grid" id="bombos-grid"></div>
-        <div class="sorteo-stage" id="sorteo-stage">
-            <div class="sorteo-ball-container" id="sorteo-ball-container">
-                <div class="sorteo-ball" id="sorteo-ball">?</div>
+        <h2 class="sorteo-title">SORTEO DE ENFRENTAMIENTOS</h2>
+        <div class="sorteo-grupos-display" id="sorteo-grupos-display"></div>
+        <div class="sorteo-center">
+            <div class="sorteo-ball-wrap">
+                <div class="sorteo-ball" id="sorteo-ball">▶</div>
             </div>
-            <div class="sorteo-info" id="sorteo-info">Haz clic en el balón para sortear</div>
+            <div class="sorteo-info" id="sorteo-info">Pulsa el balón para sortear</div>
+            <div class="sorteo-match-reveal" id="sorteo-match-reveal"></div>
         </div>
-        <button class="btn-valorant" id="btn-cerrar-sorteo" style="display:none; margin-top:20px"><span class="btn-content">VER BOMBOS</span></button>
+        <div class="sorteo-resultado" id="sorteo-resultado"></div>
+        <button class="btn-valorant" id="btn-cerrar-sorteo" style="display:none; margin-top:20px">
+            <span class="btn-content">COMENZAR TORNEO</span>
+        </button>
     </div>
 </div>
 
-<!-- MODAL -->
+<!-- MODAL GENERAL -->
 <div class="team-modal" id="teamModal">
     <div class="team-modal-card" id="teamModalCard"></div>
 </div>
 
-<!-- TABLA GENERAL -->
+<!-- MODAL TABLA -->
 <div class="team-modal" id="tablaModal">
-    <div class="team-modal-card" id="tablaModalCard" style="max-width:900px; width:95%"></div>
+    <div class="team-modal-card" id="tablaModalCard" style="max-width:900px;width:95%"></div>
 </div>
 
 <audio id="audioMono" src="sonido.mp3"></audio>
 <audio id="audioChampions" src="champions.mp3"></audio>
-<audio id="audioDrum" src="drum.mp3"></audio>
 
 <script src="script.js"></script>
 </body>
