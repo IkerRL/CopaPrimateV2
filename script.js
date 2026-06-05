@@ -1,7 +1,7 @@
 // ================================================================
 // COPA PRIMATE VOL. II
-// 20 equipos · 4 grupos de 5 · Fase de Grupos (4 partidos c/u)
-// Top 4 directo · 5º-12º playoff · 13º-20º eliminados
+// 16 equipos · 4 grupos de 4 · Liga cruzada (4 partidos c/u)
+// Top 4 directo · 5º-12º playoff · 13º-16º eliminados
 // Bracket: Cuartos → Semis → Final
 // ================================================================
 
@@ -12,28 +12,24 @@ const GRUPOS = {
         { nombre: "Golden Sex",      jugadores: ["Max","Broken","TBD"],              logo: "logo2.png"  },
         { nombre: "Crimson Eclipse", jugadores: ["ReyFhantom","zNyrex","TBD"],       logo: "logo5.png"  },
         { nombre: "GOATS",           jugadores: ["Mica","Marco","TBD"],              logo: "logo12.png" },
-        { nombre: "Equipo A5",       jugadores: ["Jugador1","Jugador2","TBD"],       logo: "logo17.png" } // NUEVO
     ],
     B: [
         { nombre: "Los Akrtona2",    jugadores: ["S3R4X","MasterKira","TBD"],        logo: "logo4.png"  },
         { nombre: "Bloody Fruit",    jugadores: ["MrPain 神","Sandiass21","TBD"],    logo: "logo7.png"  },
         { nombre: "SPIDYBOOBS",      jugadores: ["Sama","Potro","TBD"],              logo: "logo14.png" },
         { nombre: "MUGIWARAS",       jugadores: ["Andreloregon","Jess","TBD"],       logo: "logo15.png" },
-        { nombre: "Equipo B5",       jugadores: ["Jugador1","Jugador2","TBD"],       logo: "logo18.png" } // NUEVO
     ],
     C: [
         { nombre: "TETONES",         jugadores: ["Marrkitosss","Davv","TBD"],        logo: "logo11.png" },
         { nombre: "Al-dedillo VC",   jugadores: ["Xolo","Noavae","TBD"],             logo: "logo3.png"  },
         { nombre: "Konoha Makaca",   jugadores: ["MakaQuillo","MakaIsla","TBD"],     logo: "logo9.png"  },
         { nombre: "Hijas del Kaos",  jugadores: ["Satha","Kaos","TBD"],              logo: "logo8.png"  },
-        { nombre: "Equipo C5",       jugadores: ["Jugador1","Jugador2","TBD"],       logo: "logo19.png" } // NUEVO
     ],
     D: [
         { nombre: "Makaco NinjaPelocho", jugadores: ["Iker","Adri","TBD"],           logo: "logo6.png"  },
         { nombre: "Miaus",           jugadores: ["Kae","Wilson","TBD"],              logo: "logo13.png" },
         { nombre: "Team Obrikat",    jugadores: ["JettDiffs","EGOFack","TBD"],       logo: "logo10.png" },
         { nombre: "Los Simios FC",   jugadores: ["Primate1","Primate2","Primate3"],  logo: "logo16.png" },
-        { nombre: "Equipo D5",       jugadores: ["Jugador1","Jugador2","TBD"],       logo: "logo20.png" } // NUEVO
     ]
 };
 
@@ -45,16 +41,12 @@ const equipos = Object.entries(GRUPOS).flatMap(([g, lista]) =>
 const getEq  = nombre => equipos.find(e => e.nombre === nombre);
 const letras = ['A','B','C','D'];
 
-// Calendario oficial
-let calendario = [];           
-let resultados = {};           
-let playoffsData = [];         
+// Calendario por jornadas
+let jornadas = [[], [], [], []]; // jornadas[0..3] = array de { t1, t2 }
+let calendario = [];             // lista plana de todos los partidos
+let resultados = {};             // clave(t1,t2) -> { s1, s2 }
+let playoffsData = [];
 let bracketData  = null;
-
-// Memoria para la nueva lógica del sorteo
-let calendarioGlobalSecreto = [];
-let equiposSorteados = new Set();
-let partidosAgregadosUI = new Set();
 
 // ----------------------------------------------------------------
 // DOM
@@ -103,166 +95,211 @@ function renderInicial() {
 renderInicial();
 
 // ----------------------------------------------------------------
-// CLAVE DE PARTIDO
+// SORTEO DE JORNADAS
 // ----------------------------------------------------------------
-function clave(a,b) { return [a,b].sort().join('|'); }
+let idx_sorteo = 0;
+let total_sorteo = 0;
+let sorteo_animando = false;
+let partidos_generados = []; // todos los partidos ordenados por jornada
 
-// ----------------------------------------------------------------
-// NUEVO SORTEO DE ENFRENTAMIENTOS (1 A 1 DINÁMICO)
-// ----------------------------------------------------------------
 btnSorteo.addEventListener('click', () => {
     sorteoOverlay.classList.add('active');
     prepararSorteo();
 });
 
 function prepararSorteo() {
+    // Panel de grupos
     const display = document.getElementById('sorteo-grupos-display');
     display.innerHTML = '';
-    
-    // Reiniciar variables
-    equiposSorteados.clear();
-    partidosAgregadosUI.clear();
-    calendario = [];
-    resultados = {};
-    
-    // Generar emparejamientos: 20 equipos -> Todos contra todos en el grupo
-    calendarioGlobalSecreto = generarEmparejamientos(); 
-
-    // Renderizar los grupos en el overlay
     letras.forEach(g => {
         const col = document.createElement('div');
         col.className = `sg-col ${g}`;
         col.id = `sg-col-${g}`;
         col.innerHTML = `<div class="sg-col-title">GRUPO ${g}</div>`;
-        
         GRUPOS[g].forEach(eq => {
             const chip = document.createElement('div');
             chip.className = 'sg-team';
             chip.id = `sg-team-${eq.nombre.replace(/\s/g,'_')}`;
             chip.innerHTML = `<img src="${eq.logo}" onerror="this.style.display='none'"><span>${eq.nombre}</span>`;
-            
-            // Evento click a cada equipo para revelar sus partidos
-            chip.addEventListener('click', () => sortearRivalesDe(eq.nombre, chip));
             col.appendChild(chip);
         });
         display.appendChild(col);
     });
 
-    document.getElementById('sorteo-resultado').innerHTML = '';
-    document.getElementById('sorteo-info').textContent = 'HAZ CLIC EN UN EQUIPO PARA REVELAR SUS 4 PARTIDOS';
+    // Reset jornadas display
+    for(let j=0;j<4;j++){
+        const col = document.getElementById(`sj-${j}`);
+        col.innerHTML = `<div class="sj-title">JORNADA ${j+1}</div>`;
+    }
+
+    document.getElementById('sorteo-info').textContent = 'Pulsa el balón para sortear';
     document.getElementById('sorteo-match-reveal').textContent = '';
     document.getElementById('btn-cerrar-sorteo').style.display = 'none';
 
-    const ball = document.getElementById('sorteo-ball');
-    if (ball) ball.style.display = 'none';
-}
-
-function generarEmparejamientos() {
-    const partidos = [];
-    const vistos = new Set();
-    const add = (a, b) => {
-        const key = clave(a,b);
-        if (!vistos.has(key)) { vistos.add(key); partidos.push({t1:a, t2:b}); }
-    };
-
-    // Todos contra todos dentro del mismo grupo
-    letras.forEach(g => {
-        const arr = GRUPOS[g].map(e=>e.nombre);
-        for(let i=0; i<arr.length; i++){
-            for(let j=i+1; j<arr.length; j++){
-                add(arr[i], arr[j]);
-            }
-        }
+    // Generar partidos distribuidos en 4 jornadas
+    jornadas = generarJornadas();
+    partidos_generados = jornadas.flat();
+    calendario = [...partidos_generados];
+    partidos_generados.forEach(p => {
+        resultados[clave(p.t1,p.t2)] = { s1:'', s2:'' };
     });
 
-    return shuffle(partidos);
+    // El sorteo revela partido a partido (jornada por jornada)
+    // Primero todos los de J1, luego J2, etc.
+    idx_sorteo = 0;
+    total_sorteo = partidos_generados.length;
+
+    const ball = document.getElementById('sorteo-ball');
+    ball.textContent = '▶';
+    ball.style.cursor = 'pointer';
+    ball.onclick = () => sortearSiguiente(ball);
 }
 
-function sortearRivalesDe(equipoNombre, chipElement) {
-    if (equiposSorteados.has(equipoNombre)) return; 
-    
-    try { audioMono.currentTime=0; audioMono.play(); } catch(e) {}
+function generarJornadas() {
+    // Genera 32 partidos únicos distribuidos en 4 jornadas de 8
+    // Restricción: cada equipo aparece exactamente 1 vez por jornada
 
-    // Buscar los partidos precalculados para este equipo
-    const misPartidos = calendarioGlobalSecreto.filter(p => p.t1 === equipoNombre || p.t2 === equipoNombre);
-    const eq = getEq(equipoNombre);
-
-    // Generar la UI interna del modal
-    let htmlRivales = misPartidos.map(match => {
-        const rivalNombre = match.t1 === equipoNombre ? match.t2 : match.t1;
-        const rival = getEq(rivalNombre);
-        return `
-            <div style="background:rgba(255,255,255,0.05); padding:10px 20px; border-radius:10px; display:flex; justify-content: space-between; align-items:center; border: 1px solid var(--card-border);">
-                <span style="font-size:1.2rem; font-family:'BertholdBlock';">${rival.nombre}</span>
-                <div style="display:flex; align-items:center; gap:15px;">
-                    <span class="grupo-badge ${rival.grupo}" style="position:static; font-size:0.8rem; padding:4px 8px;">G${rival.grupo}</span>
-                    <img src="${rival.logo}" style="width:40px; height:40px; object-fit:contain;">
-                </div>
-            </div>
-        `;
-    }).join('');
-
-    modalCard.innerHTML = `
-        <div style="display:flex; flex-direction:column; align-items:center; gap:20px;">
-            <img src="${eq.logo}" style="width:120px; height:120px; object-fit:contain">
-            <h2 style="font-family:'BertholdBlock'; font-size:2.5rem; color:var(--omen-cyan); text-align:center; margin-bottom: 0;">
-                ${eq.nombre}
-            </h2>
-            <h3 style="color:white; letter-spacing:2px; font-size:1rem; margin-top:-10px;">ENFRENTAMIENTOS ASIGNADOS</h3>
-            
-            <div style="width:100%; display:flex; flex-direction:column; gap:10px; margin-top: 10px;">
-                ${htmlRivales}
-            </div>
-            
-            <button class="btn-valorant" id="btnCerrarSorteoModal" style="width:100%; margin-top:20px;">
-                <span class="btn-content">CONFIRMAR Y GUARDAR</span>
-            </button>
-        </div>
-    `;
-    
-    modal.classList.add("active");
-
-    // Al confirmar, se guardan los partidos bidireccionalmente
-    document.getElementById('btnCerrarSorteoModal').onclick = () => {
-        modal.classList.remove("active");
-        
-        equiposSorteados.add(equipoNombre);
-        chipElement.style.borderColor = "var(--omen-cyan)";
-        chipElement.style.boxShadow = "0 0 15px var(--omen-glow)";
-        chipElement.style.opacity = "0.7"; 
-
-        const resEl = document.getElementById('sorteo-resultado');
-        
-        misPartidos.forEach(match => {
-            const k = clave(match.t1, match.t2);
-            if (!partidosAgregadosUI.has(k)) {
-                partidosAgregadosUI.add(k);
-                calendario.push(match);
-                resultados[k] = { s1:'', s2:'' };
-
-                const eq1 = getEq(match.t1);
-                const eq2 = getEq(match.t2);
-                const item = document.createElement('div');
-                item.className = 'sorteo-match-item visible';
-                item.innerHTML = `
-                    <img src="${eq1.logo}" onerror="this.style.display='none'">
-                    <span>${match.t1}</span>
-                    <span class="vs-badge">VS</span>
-                    <span>${match.t2}</span>
-                    <img src="${eq2.logo}" onerror="this.style.display='none'">
-                    <span class="grupo-vs">G${eq1.grupo} · G${eq2.grupo}</span>`;
-                resEl.appendChild(item);
-            }
-        });
-        
-        resEl.scrollTop = resEl.scrollHeight;
-        document.getElementById('sorteo-info').textContent = `EQUIPOS REVELADOS: ${equiposSorteados.size} / 20`;
-
-        if (equiposSorteados.size === 20) {
-            document.getElementById('btn-cerrar-sorteo').style.display = 'block';
-            document.getElementById('sorteo-info').textContent = '¡SORTEO COMPLETADO! 40 PARTIDOS REGISTRADOS';
-        }
+    // Primero generamos todos los partidos
+    const todos = [];
+    const vistos = new Set();
+    const add = (a,b) => {
+        const k = [a,b].sort().join('|');
+        if(!vistos.has(k)){ vistos.add(k); todos.push({t1:a,t2:b}); }
     };
+
+    // Intra-grupo: 4 grupos × 2 partidos = 8 partidos
+    letras.forEach(g => {
+        const arr = shuffle([...GRUPOS[g].map(e=>e.nombre)]);
+        add(arr[0],arr[1]);
+        add(arr[2],arr[3]);
+    });
+
+    // Inter-grupos: cada equipo vs 1 de cada otro grupo
+    // 6 pares de grupos × 4 partidos = 24 partidos
+    const pares = [['A','B'],['A','C'],['A','D'],['B','C'],['B','D'],['C','D']];
+    pares.forEach(([g1,g2]) => {
+        const a1 = shuffle([...GRUPOS[g1].map(e=>e.nombre)]);
+        const a2 = shuffle([...GRUPOS[g2].map(e=>e.nombre)]);
+        a1.forEach((t,i) => add(t, a2[i]));
+    });
+
+    // Distribuir en 4 jornadas de 8 garantizando que cada equipo
+    // aparezca exactamente 1 vez por jornada
+    return distribuirEnJornadas(shuffle(todos));
+}
+
+function distribuirEnJornadas(partidos) {
+    const J = [[],[],[],[]];
+    const usadoPorJornada = [{},{},{},{}]; // nombre → true si ya está en esa jornada
+
+    const puedeIr = (p, j) =>
+        !usadoPorJornada[j][p.t1] && !usadoPorJornada[j][p.t2];
+
+    const marcar = (p, j) => {
+        usadoPorJornada[j][p.t1] = true;
+        usadoPorJornada[j][p.t2] = true;
+        J[j].push(p);
+    };
+
+    // Intentamos distribuir con backtracking simple
+    // (con solo 32 partidos y 16 equipos es rápido)
+    const colocar = (idx) => {
+        if(idx === partidos.length) return true;
+        const p = partidos[idx];
+        for(let j=0; j<4; j++){
+            if(J[j].length < 8 && puedeIr(p,j)){
+                marcar(p,j);
+                if(colocar(idx+1)) return true;
+                J[j].pop();
+                delete usadoPorJornada[j][p.t1];
+                delete usadoPorJornada[j][p.t2];
+            }
+        }
+        return false;
+    };
+
+    // Intentar hasta que funcione (shuffle asegura variedad)
+    let intentos = 0;
+    while(!colocar(0) && intentos < 20){
+        J.forEach(j=>j.length=0);
+        usadoPorJornada.forEach(u=>{ for(const k in u) delete u[k]; });
+        shuffle(partidos);
+        intentos++;
+    }
+
+    return J;
+}
+
+function sortearSiguiente(ball) {
+    if(sorteo_animando) return;
+    if(idx_sorteo >= total_sorteo) return;
+
+    sorteo_animando = true;
+
+    // Determinar jornada actual
+    let acumulado = 0;
+    let jornada_actual = 0;
+    let idx_en_jornada = idx_sorteo;
+    for(let j=0; j<4; j++){
+        if(idx_sorteo < acumulado + jornadas[j].length){
+            jornada_actual = j;
+            idx_en_jornada = idx_sorteo - acumulado;
+            break;
+        }
+        acumulado += jornadas[j].length;
+    }
+
+    const match = jornadas[jornada_actual][idx_en_jornada];
+    const eq1 = getEq(match.t1);
+    const eq2 = getEq(match.t2);
+    const infoEl = document.getElementById('sorteo-info');
+    const revealEl = document.getElementById('sorteo-match-reveal');
+
+    // Resaltar en panel de grupos
+    document.querySelectorAll('.sg-team').forEach(el => el.classList.remove('highlighted'));
+    document.getElementById(`sg-team-${match.t1.replace(/\s/g,'_')}`)?.classList.add('highlighted');
+    document.getElementById(`sg-team-${match.t2.replace(/\s/g,'_')}`)?.classList.add('highlighted');
+
+    // Animar bola
+    ball.classList.add('spinning');
+    ball.textContent = '...';
+    infoEl.textContent = `JORNADA ${jornada_actual+1} · PARTIDO ${idx_en_jornada+1}/8`;
+    revealEl.textContent = '';
+    try{ audioMono.currentTime=0; audioMono.play(); } catch(e){}
+
+    setTimeout(() => {
+        ball.classList.remove('spinning');
+        ball.textContent = `J${jornada_actual+1}`;
+        revealEl.textContent = `${match.t1} ⚡ ${match.t2}`;
+
+        // Añadir chip a la columna de jornada
+        const sjCol = document.getElementById(`sj-${jornada_actual}`);
+        const chip = document.createElement('div');
+        chip.className = 'sj-match';
+        chip.innerHTML = `
+            <img src="${eq1.logo}" onerror="this.style.display='none'">
+            <span>${match.t1}</span>
+            <span class="sj-vs">VS</span>
+            <span>${match.t2}</span>
+            <img src="${eq2.logo}" onerror="this.style.display='none'">`;
+        sjCol.appendChild(chip);
+        setTimeout(()=>chip.classList.add('visible'), 40);
+        sjCol.scrollTop = sjCol.scrollHeight;
+
+        idx_sorteo++;
+        sorteo_animando = false;
+
+        if(idx_sorteo >= total_sorteo){
+            ball.textContent = '✓';
+            ball.style.cursor = 'default';
+            ball.onclick = null;
+            infoEl.textContent = '¡SORTEO COMPLETADO! 32 PARTIDOS';
+            revealEl.textContent = '';
+            document.getElementById('btn-cerrar-sorteo').style.display = 'block';
+        } else {
+            setTimeout(()=>{ ball.textContent='▶'; }, 500);
+        }
+    }, 800);
 }
 
 document.getElementById('btn-cerrar-sorteo').addEventListener('click', () => {
@@ -271,7 +308,7 @@ document.getElementById('btn-cerrar-sorteo').addEventListener('click', () => {
     btnLiga.style.display = 'inline-block';
 
     let tf = document.getElementById('btn-tabla-flotante');
-    if (!tf) {
+    if(!tf){
         tf = document.createElement('button');
         tf.id = 'btn-tabla-flotante';
         tf.className = 'btn-valorant btn-gold';
@@ -283,7 +320,12 @@ document.getElementById('btn-cerrar-sorteo').addEventListener('click', () => {
 });
 
 // ----------------------------------------------------------------
-// FASE DE LIGA
+// CLAVE DE PARTIDO
+// ----------------------------------------------------------------
+function clave(a,b) { return [a,b].sort().join('|'); }
+
+// ----------------------------------------------------------------
+// FASE DE LIGA — VISTA POR JORNADAS
 // ----------------------------------------------------------------
 btnLiga.addEventListener('click', () => {
     mostrarLiga();
@@ -296,122 +338,80 @@ function mostrarLiga() {
     const wrapper = document.createElement('div');
     wrapper.className = 'liga-wrapper';
 
-    letras.forEach(g => {
+    jornadas.forEach((partidos, ji) => {
         const div = document.createElement('div');
         div.className = 'contenedor-grupo';
-        const color = `var(--col-${g.toLowerCase()})`;
-
         div.innerHTML = `
-            <h2 class="titulo-grupo-header" style="color:${color}">
-                GRUPO ${g}
+            <h2 class="titulo-grupo-header" style="color:var(--omen-cyan)">
+                JORNADA ${ji+1}
                 <small>DOBLE CLIC PARA GESTIONAR</small>
             </h2>
-            <div class="lista-interna" id="lista-${g}"></div>`;
+            <div class="lista-jornada" id="lista-j${ji}"></div>`;
 
-        const lista = div.querySelector(`#lista-${g}`);
-        const cards = [];
+        const lista = div.querySelector(`#lista-j${ji}`);
+        partidos.forEach(p => lista.appendChild(crearCardPartido(p, ji)));
 
-        GRUPOS[g].forEach(eq => {
-            const card = crearCardLiga(eq);
-            lista.appendChild(card);
-            cards.push({ card, eq });
-        });
-
-        div.querySelector('.titulo-grupo-header').ondblclick = () => abrirPartidosGrupo(g, cards, lista);
-
+        div.querySelector('.titulo-grupo-header').ondblclick = () => abrirPartidosJornada(ji);
         wrapper.appendChild(div);
-        actualizarOrdenGrupo(g, cards, lista);
     });
 
     container.appendChild(wrapper);
 }
 
-function crearCardLiga(eq) {
-    const wins = getWins(eq.nombre);
-    const partidos = getPartidosEquipo(eq.nombre);
+function crearCardPartido(p, ji) {
+    const k = clave(p.t1, p.t2);
+    const r = resultados[k] || { s1:'', s2:'' };
+    const eq1 = getEq(p.t1);
+    const eq2 = getEq(p.t2);
+    const jugado = r.s1!=='' && r.s2!=='';
+    const s1 = parseInt(r.s1)||0, s2 = parseInt(r.s2)||0;
+    const t1Win = jugado && s1>s2;
+    const t2Win = jugado && s2>s1;
+
     const card = document.createElement('div');
-    card.className = 'card-equipo revealed';
+    card.className = 'partido-card';
+    card.id = `pcard-${k.replace(/\|/g,'_')}`;
     card.innerHTML = `
-        <div class="equipo-content" style="opacity:1">
-            <img src="${eq.logo}" class="equipo-logo" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2240%22 height=%2240%22><rect width=%2240%22 height=%2240%22 rx=%226%22 fill=%22%23222%22/></svg>'">
-            <div style="flex:1">
-                <div class="nombre-equipo">${eq.nombre}</div>
-                <div style="font-size:.6rem; color:rgba(255,255,255,0.35); margin-top:2px">GRUPO ${eq.grupo}</div>
-            </div>
-            <div class="pelotitas-container">
-                ${partidos.map((_,i) => `<div class="pelotita" data-estado="${i<wins?'1':'0'}"></div>`).join('')}
-            </div>
+        <div class="pc-team ${jugado&&!t1Win?'pc-loser':''}">
+            <img src="${eq1.logo}" onerror="this.style.display='none'">
+            <span class="pc-name">${p.t1}</span>
+            <span class="pc-gbadge ${eq1.grupo}">${eq1.grupo}</span>
+        </div>
+        <div class="pc-score">
+            <span class="${t1Win?'pc-score-win':''}">${jugado?s1:'—'}</span>
+            <span class="pc-score-sep">:</span>
+            <span class="${t2Win?'pc-score-win':''}">${jugado?s2:'—'}</span>
+        </div>
+        <div class="pc-team pc-team-right ${jugado&&!t2Win?'pc-loser':''}">
+            <span class="pc-gbadge ${eq2.grupo}">${eq2.grupo}</span>
+            <span class="pc-name">${p.t2}</span>
+            <img src="${eq2.logo}" onerror="this.style.display='none'">
         </div>`;
     return card;
 }
 
-function getPartidosEquipo(nombre) {
-    return calendario.filter(p => p.t1===nombre || p.t2===nombre);
+function refreshJornada(ji) {
+    const lista = document.getElementById(`lista-j${ji}`);
+    if(!lista) return;
+    lista.innerHTML = '';
+    jornadas[ji].forEach(p => lista.appendChild(crearCardPartido(p, ji)));
 }
 
-function getWins(nombre) {
-    let w = 0;
-    getPartidosEquipo(nombre).forEach(p => {
-        const k = clave(p.t1, p.t2);
-        const r = resultados[k];
-        if (!r || r.s1==='' || r.s2==='') return;
-        const s1=parseInt(r.s1)||0, s2=parseInt(r.s2)||0;
-        if (s1===s2) return;
-        
-        const [kA] = k.split('|');
-        const esKA = kA===nombre;
-        if (esKA && s1>s2) w++;
-        if (!esKA && s2>s1) w++;
-    });
-    return w;
-}
-
-function getDiff(nombre) {
-    let d = 0;
-    getPartidosEquipo(nombre).forEach(p => {
-        const k = clave(p.t1, p.t2);
-        const r = resultados[k];
-        if (!r || r.s1==='' || r.s2==='') return;
-        const s1=parseInt(r.s1)||0, s2=parseInt(r.s2)||0;
-        const [kA] = k.split('|');
-        d += (kA===nombre) ? (s1-s2) : (s2-s1);
-    });
-    return d;
-}
-
-function getPuntos(nombre) { return getWins(nombre)*3; }
-
-function actualizarOrdenGrupo(g, cards, lista) {
-    const sorted = [...cards].sort((a,b) =>
-        getPuntos(b.eq.nombre)-getPuntos(a.eq.nombre) ||
-        getDiff(b.eq.nombre)-getDiff(a.eq.nombre)
-    );
-    sorted.forEach(({card,eq}) => {
-        lista.appendChild(card);
-        const wins = getWins(eq.nombre);
-        const partidos = getPartidosEquipo(eq.nombre);
-        card.querySelectorAll('.pelotita').forEach((p,i) => p.dataset.estado = i<wins?'1':'0');
-    });
-}
-
-function abrirPartidosGrupo(g, cards, lista) {
-    const partidos = calendario.filter(p =>
-        (getEq(p.t1)?.grupo===g || getEq(p.t2)?.grupo===g)
-    );
-
+function abrirPartidosJornada(ji) {
+    const partidos = jornadas[ji];
     modalCard.innerHTML = `
-        <h2 style="font-family:'BertholdBlock'; text-align:center; color:var(--col-${g.toLowerCase()}); margin-bottom:15px; font-size:1.4rem; letter-spacing:3px">
-            GRUPO ${g} — PARTIDOS
+        <h2 style="font-family:'BertholdBlock'; text-align:center; color:var(--omen-cyan); margin-bottom:18px; font-size:1.4rem; letter-spacing:3px">
+            JORNADA ${ji+1}
         </h2>
-        <div id="modal-partidos"></div>
-        <button class="btn-valorant" id="sv-partidos" style="width:100%; margin-top:12px"><span class="btn-content">GUARDAR</span></button>`;
+        <div id="modal-partidos-j"></div>
+        <button class="btn-valorant" id="sv-jornada" style="width:100%; margin-top:14px"><span class="btn-content">GUARDAR</span></button>`;
 
-    const cont = modalCard.querySelector('#modal-partidos');
+    const cont = modalCard.querySelector('#modal-partidos-j');
     partidos.forEach(p => {
         const k = clave(p.t1,p.t2);
         const r = resultados[k]||{s1:'',s2:''};
         const [kA,kB] = k.split('|');
-        const eA=getEq(kA), eB=getEq(kB);
+        const eA = getEq(kA), eB = getEq(kB);
         const row = document.createElement('div');
         row.className = 'partido-row';
         row.dataset.key = k;
@@ -428,15 +428,14 @@ function abrirPartidosGrupo(g, cards, lista) {
 
     modal.classList.add('active');
 
-    modalCard.querySelector('#sv-partidos').onclick = () => {
+    modalCard.querySelector('#sv-jornada').onclick = () => {
         cont.querySelectorAll('.partido-row').forEach(row => {
-            const k = row.dataset.key;
-            resultados[k] = {
+            resultados[row.dataset.key] = {
                 s1: row.querySelector('.in-s1').value,
                 s2: row.querySelector('.in-s2').value
             };
         });
-        actualizarOrdenGrupo(g, cards, lista);
+        refreshJornada(ji);
         modal.classList.remove('active');
     };
 }
@@ -494,13 +493,13 @@ function mostrarTabla() {
         <div style="display:flex;gap:12px;justify-content:center;margin-top:16px;font-size:.7rem;flex-wrap:wrap">
             <span><span class="zona-tag direct">DIRECTO</span> Top 4 → Cuartos</span>
             <span><span class="zona-tag playoff">PLAYOFF</span> 5º-12º → Playoff</span>
-            <span><span class="zona-tag elim">ELIMINADO</span> 13º-20º → Fuera</span>
+            <span><span class="zona-tag elim">ELIMINADO</span> 13º-16º → Fuera</span>
         </div>`;
     tablaModal.classList.add('active');
 }
 
 // ----------------------------------------------------------------
-// PLAYOFFS
+// PLAYOFFS (5º al 12º → 4 partidos → 4 pasan a cuartos)
 // ----------------------------------------------------------------
 btnPlayoffs.addEventListener('click', () => {
     mostrarPlayoffs();
@@ -513,8 +512,9 @@ function mostrarPlayoffs() {
     document.getElementById('btn-tabla-flotante').style.display = 'none';
 
     const ranking = getRanking();
-    const zona = ranking.slice(4,12);
+    const zona = ranking.slice(4,12); // posiciones 5ª a 12ª (índices 4-11)
 
+    // Emparejamientos: 5ºvs12º, 6ºvs11º, 7ºvs10º, 8ºvs9º
     playoffsData = [
         { t1:zona[0].eq, t2:zona[7].eq, seed1:5,  seed2:12, ganador:null, s1:'', s2:'' },
         { t1:zona[1].eq, t2:zona[6].eq, seed1:6,  seed2:11, ganador:null, s1:'', s2:'' },
@@ -612,6 +612,9 @@ function iniciarBracket() {
     const top4 = ranking.slice(0,4).map(r=>r.eq);
     const gpWinners = playoffsData.map(pd => pd.ganador || { nombre:'TBD', logo:'' });
 
+    // Cuartos de final (4 partidos):
+    // QF1: #1 vs GP4  |  QF2: #2 vs GP3
+    // QF3: #3 vs GP2  |  QF4: #4 vs GP1
     bracketData = {
         qf: [
             { id:'qf0', t1:top4[0], t2:gpWinners[3], s1:'', s2:'', ganador:null },
@@ -640,8 +643,11 @@ function renderBracket() {
     const bc = document.createElement('div');
     bc.className = 'bracket-container';
 
+    // Columna QF
     const colQF = crearColumna('CUARTOS DE FINAL', bracketData.qf, 'qf');
+    // Columna SF
     const colSF = crearColumna('SEMIFINALES', bracketData.sf, 'sf');
+    // Columna Final
     const colFN = crearColumna('⚡ GRAN FINAL', bracketData.fn, 'fn');
 
     bc.appendChild(colQF);
@@ -661,6 +667,11 @@ function crearColumna(titulo, partidos, fase) {
     tit.className = 'bracket-col-title';
     tit.textContent = titulo;
     col.appendChild(tit);
+
+    // Espaciado vertical para alinear con la siguiente columna
+    const alturas = { qf: [0,1,2,3], sf: [0.5, 2.5], fn: [1.5] };
+    const gaps    = { qf: 15, sf: 15, fn: 15 };
+    const boxH    = 100; // altura aprox de un match-box en px
 
     partidos.forEach((p, i) => {
         const box = crearMatchBox(p, fase, i);
@@ -715,6 +726,8 @@ function renderMatchBox(box, p) {
 }
 
 function avanzarBracket(fase, idx, ganador) {
+    // QF → SF: QF0→SF0.t1, QF1→SF0.t2, QF2→SF1.t1, QF3→SF1.t2
+    // SF → FN: SF0→FN0.t1, SF1→FN0.t2
     let destFase, destIdx, destSlot;
 
     if(fase==='qf') {
@@ -729,10 +742,12 @@ function avanzarBracket(fase, idx, ganador) {
     const arr = destFase==='sf' ? bracketData.sf : bracketData.fn;
     arr[destIdx][destSlot] = ganador;
 
+    // Re-renderizar el match destino
     const destBox = document.getElementById(`mb-${arr[destIdx].id}`);
     if(!destBox) return;
     renderMatchBox(destBox, arr[destIdx]);
 
+    // Si ya tiene los 2 equipos, activar dblclick
     const p = arr[destIdx];
     if(p.t1.nombre!=='TBD' && p.t2.nombre!=='TBD') {
         destBox.classList.remove('tbd');
