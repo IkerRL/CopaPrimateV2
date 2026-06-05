@@ -335,109 +335,130 @@ btnLiga.addEventListener('click', () => {
 
 function mostrarLiga() {
     container.innerHTML = '';
-    const wrapper = document.createElement('div');
-    wrapper.className = 'liga-wrapper';
+    
+    // Ocultamos el botón flotante tradicional de la tabla porque ahora estará integrada fijamente
+    const tf = document.getElementById('btn-tabla-flotante');
+    if (tf) tf.style.display = 'none';
+
+    // Contenedor Split Principal (Izquierda / Derecha)
+    const splitContainer = document.createElement('div');
+    splitContainer.className = 'liga-split-container';
+
+    // === COLUMNA IZQUIERDA: TABLA GENERAL DE CLASIFICACIÓN ===
+    const tablaCol = document.createElement('div');
+    tablaCol.className = 'liga-tabla-col';
+    
+    const ranking = getRanking();
+    const trClass = pos => pos <= 4 ? 'tr-direct' : pos <= 12 ? 'tr-playoff' : 'tr-elim';
+
+    tablaCol.innerHTML = `
+        <div class="contenedor-tabla-directa">
+            <h2 class="titulo-seccion-liga">📊 CLASIFICACIÓN</h2>
+            <table class="tabla-general">
+                <thead><tr>
+                    <th>#</th><th>EQUIPO</th><th>PJ</th><th>V</th><th>PTS</th><th>DIF</th>
+                </tr></thead>
+                <tbody>
+                ${ranking.map((r, i) => {
+                    const pos = i + 1;
+                    return `<tr class="${trClass(pos)}">
+                        <td class="pos-num">${pos}</td>
+                        <td><div style="display:flex;align-items:center;gap:8px">
+                            <img src="${r.eq.logo}" style="width:20px;height:20px;object-fit:contain" onerror="this.style.display='none'">
+                            <span class="tabla-nom-equipo">${r.eq.nombre}</span>
+                        </div></td>
+                        <td style="text-align:center">${r.pj}</td>
+                        <td style="text-align:center">${r.wins}</td>
+                        <td style="text-align:center;font-family:'BertholdBlock'">${r.pts}</td>
+                        <td style="text-align:center;color:${r.diff >= 0 ? '#00ff88' : '#ff4655'}">${r.diff > 0 ? '+' : ''}${r.diff}</td>
+                    </tr>`;
+                }).join('')}
+                </tbody>
+            </table>
+        </div>`;
+    splitContainer.appendChild(tablaCol);
+
+    // === COLUMNA DERECHA: MINI CARPETAS (ACCORDIONS DE JORNADAS) ===
+    const jornadasCol = document.createElement('div');
+    jornadasCol.className = 'liga-jornadas-col';
+    
+    const tituloJornadas = document.createElement('h2');
+    tituloJornadas.className = 'titulo-seccion-liga';
+    tituloJornadas.innerHTML = '📅 ENFRENTAMIENTOS <small style="font-size:0.55rem; color:rgba(255,255,255,0.4); display:block; margin-top:4px; letter-spacing:1px;">DOBLE CLIC PARA EDITAR MARCADORES</small>';
+    jornadasCol.appendChild(tituloJornadas);
 
     jornadas.forEach((partidos, ji) => {
-        const div = document.createElement('div');
-        div.className = 'contenedor-grupo';
-        div.innerHTML = `
-            <h2 class="titulo-grupo-header" style="color:var(--omen-cyan)">
-                JORNADA ${ji+1}
-                <small>DOBLE CLIC PARA GESTIONAR</small>
-            </h2>
-            <div class="lista-jornada" id="lista-j${ji}"></div>`;
+        const accItem = document.createElement('div');
+        accItem.className = 'accordion-jornada';
 
-        const lista = div.querySelector(`#lista-j${ji}`);
+        // Estructura de minicarpeta interactiva con un slider interno
+        accItem.innerHTML = `
+            <div class="accordion-header">
+                <div class="folder-title">
+                    <span class="folder-icon">📁</span>
+                    <span>JORNADA ${ji + 1}</span>
+                </div>
+                <span class="arrow-icon">▼</span>
+            </div>
+            <div class="accordion-content">
+                <div class="lista-jornada" id="lista-j${ji}"></div>
+            </div>`;
+
+        const header = accItem.querySelector('.accordion-header');
+        
+        // Un click extiende o contrae el slider de partidos
+        header.addEventListener('click', (e) => {
+            if (e.detail === 1) { 
+                const isOpen = accItem.classList.contains('active');
+                // Opcional: Cierra las otras carpetas si quieres modo acordeón estricto
+                jornadasCol.querySelectorAll('.accordion-jornada').forEach(item => item.classList.remove('active'));
+                if (!isOpen) accItem.classList.add('active');
+            }
+        });
+
+        // Doble click despliega la ventana emergente original de edición de goles
+        header.addEventListener('dblclick', () => {
+            abrirPartidosJornada(ji);
+        });
+
+        // Adjuntamos las tarjetas de partidos generadas
+        const lista = accItem.querySelector(`#lista-j${ji}`);
         partidos.forEach(p => lista.appendChild(crearCardPartido(p, ji)));
 
-        div.querySelector('.titulo-grupo-header').ondblclick = () => abrirPartidosJornada(ji);
-        wrapper.appendChild(div);
+        jornadasCol.appendChild(accItem);
     });
 
-    container.appendChild(wrapper);
+    splitContainer.appendChild(jornadasCol);
+    container.appendChild(splitContainer);
 }
 
-function crearCardPartido(p, ji) {
-    const k = clave(p.t1, p.t2);
-    const r = resultados[k] || { s1:'', s2:'' };
-    const eq1 = getEq(p.t1);
-    const eq2 = getEq(p.t2);
-    const jugado = r.s1!=='' && r.s2!=='';
-    const s1 = parseInt(r.s1)||0, s2 = parseInt(r.s2)||0;
-    const t1Win = jugado && s1>s2;
-    const t2Win = jugado && s2>s1;
-
-    const card = document.createElement('div');
-    card.className = 'partido-card';
-    card.id = `pcard-${k.replace(/\|/g,'_')}`;
-    card.innerHTML = `
-        <div class="pc-team ${jugado&&!t1Win?'pc-loser':''}">
-            <img src="${eq1.logo}" onerror="this.style.display='none'">
-            <span class="pc-name">${p.t1}</span>
-            <span class="pc-gbadge ${eq1.grupo}">${eq1.grupo}</span>
-        </div>
-        <div class="pc-score">
-            <span class="${t1Win?'pc-score-win':''}">${jugado?s1:'—'}</span>
-            <span class="pc-score-sep">:</span>
-            <span class="${t2Win?'pc-score-win':''}">${jugado?s2:'—'}</span>
-        </div>
-        <div class="pc-team pc-team-right ${jugado&&!t2Win?'pc-loser':''}">
-            <span class="pc-gbadge ${eq2.grupo}">${eq2.grupo}</span>
-            <span class="pc-name">${p.t2}</span>
-            <img src="${eq2.logo}" onerror="this.style.display='none'">
-        </div>`;
-    return card;
-}
-
+// Sobreescribimos refreshJornada para que al actualizar goles, la tabla izquierda también mute en tiempo real
 function refreshJornada(ji) {
     const lista = document.getElementById(`lista-j${ji}`);
-    if(!lista) return;
+    if (!lista) return;
     lista.innerHTML = '';
     jornadas[ji].forEach(p => lista.appendChild(crearCardPartido(p, ji)));
-}
-
-function abrirPartidosJornada(ji) {
-    const partidos = jornadas[ji];
-    modalCard.innerHTML = `
-        <h2 style="font-family:'BertholdBlock'; text-align:center; color:var(--omen-cyan); margin-bottom:18px; font-size:1.4rem; letter-spacing:3px">
-            JORNADA ${ji+1}
-        </h2>
-        <div id="modal-partidos-j"></div>
-        <button class="btn-valorant" id="sv-jornada" style="width:100%; margin-top:14px"><span class="btn-content">GUARDAR</span></button>`;
-
-    const cont = modalCard.querySelector('#modal-partidos-j');
-    partidos.forEach(p => {
-        const k = clave(p.t1,p.t2);
-        const r = resultados[k]||{s1:'',s2:''};
-        const [kA,kB] = k.split('|');
-        const eA = getEq(kA), eB = getEq(kB);
-        const row = document.createElement('div');
-        row.className = 'partido-row';
-        row.dataset.key = k;
-        row.innerHTML = `
-            <img src="${eA.logo}" onerror="this.style.display='none'">
-            <span class="pnom">${kA}</span>
-            <input type="number" class="in-s1" value="${r.s1}" min="0" placeholder="0">
-            <span class="sep">—</span>
-            <input type="number" class="in-s2" value="${r.s2}" min="0" placeholder="0">
-            <span class="pnom" style="text-align:right">${kB}</span>
-            <img src="${eB.logo}" onerror="this.style.display='none'">`;
-        cont.appendChild(row);
-    });
-
-    modal.classList.add('active');
-
-    modalCard.querySelector('#sv-jornada').onclick = () => {
-        cont.querySelectorAll('.partido-row').forEach(row => {
-            resultados[row.dataset.key] = {
-                s1: row.querySelector('.in-s1').value,
-                s2: row.querySelector('.in-s2').value
-            };
-        });
-        refreshJornada(ji);
-        modal.classList.remove('active');
-    };
+    
+    // Actualización reactiva instantánea del bloque de Clasificación
+    const tbody = document.querySelector('.contenedor-tabla-directa tbody');
+    if (tbody) {
+        const ranking = getRanking();
+        const trClass = pos => pos <= 4 ? 'tr-direct' : pos <= 12 ? 'tr-playoff' : 'tr-elim';
+        tbody.innerHTML = ranking.map((r, i) => {
+            const pos = i + 1;
+            return `<tr class="${trClass(pos)}">
+                <td class="pos-num">${pos}</td>
+                <td><div style="display:flex;align-items:center;gap:8px">
+                    <img src="${r.eq.logo}" style="width:20px;height:20px;object-fit:contain" onerror="this.style.display='none'">
+                    <span class="tabla-nom-equipo">${r.eq.nombre}</span>
+                </div></td>
+                <td style="text-align:center">${r.pj}</td>
+                <td style="text-align:center">${r.wins}</td>
+                <td style="text-align:center;font-family:'BertholdBlock'">${r.pts}</td>
+                <td style="text-align:center;color:${r.diff >= 0 ? '#00ff88' : '#ff4655'}">${r.diff > 0 ? '+' : ''}${r.diff}</td>
+            </tr>`;
+        }).join('');
+    }
 }
 
 // ----------------------------------------------------------------
