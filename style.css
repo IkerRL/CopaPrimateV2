@@ -211,3 +211,120 @@ body { background:var(--omen-deep); color:white; font-family:'Inter',sans-serif;
     .titulo-principal { font-size:2rem; }
     .sorteo-grupos-display { grid-template-columns:1fr 1fr; }
 }
+/* =========================================
+   DISEÑO: 4 MINICARPETAS (JORNADAS)
+   ========================================= */
+
+/* Contenedor principal en formato cuadrícula de 4 columnas */
+.sorteo-jornadas {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 15px;
+    width: 100%;
+    max-width: 1200px;
+    margin-top: 20px;
+}
+
+/* Diseño de cada minicarpeta */
+.sj-col {
+    background: rgba(10, 10, 30, 0.6);
+    border: 1px solid rgba(124, 114, 255, 0.2);
+    border-top: 4px solid var(--omen-cyan); /* Borde superior brillante */
+    border-radius: 12px;
+    height: 320px; /* Altura fija para activar el scroll */
+    overflow-y: auto; /* Activa el slider vertical */
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+}
+
+/* Estilo del Scrollbar para que encaje con la temática */
+.sj-col::-webkit-scrollbar {
+    width: 6px;
+}
+.sj-col::-webkit-scrollbar-thumb {
+    background: var(--omen-purple);
+    border-radius: 4px;
+}
+.sj-col::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2);
+}
+
+/* Cabecera pegajosa (Sticky) para que siempre se vea "JORNADA X" al hacer scroll */
+.sj-title {
+    position: sticky;
+    top: 0;
+    background: rgba(15, 15, 35, 0.95);
+    backdrop-filter: blur(5px);
+    font-family: 'BertholdBlock';
+    color: var(--omen-cyan);
+    text-align: center;
+    padding: 12px 10px;
+    font-size: 1.1rem;
+    letter-spacing: 3px;
+    z-index: 2;
+    border-bottom: 1px solid rgba(124, 114, 255, 0.3);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+}
+
+/* Estilo individual de cada enfrentamiento que entra en la carpeta */
+.sj-match {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px;
+    margin: 8px 10px;
+    background: rgba(255, 255, 255, 0.05);
+    border-left: 3px solid var(--omen-purple);
+    border-radius: 8px;
+    opacity: 0; /* Empieza oculto para la animación */
+    transform: translateY(15px);
+    transition: opacity 0.4s ease, transform 0.4s ease;
+}
+
+/* Clase que inyecta JS para mostrar con animación */
+.sj-match.visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.sj-match img {
+    width: 26px;
+    height: 26px;
+    object-fit: contain;
+}
+
+/* Textos de los equipos */
+.sj-match span {
+    font-size: 0.75rem;
+    flex: 1;
+}
+
+.sj-match span:nth-child(2) { /* Equipo 1 */
+    text-align: right;
+    padding-right: 5px;
+}
+
+.sj-match span:nth-child(4) { /* Equipo 2 */
+    text-align: left;
+    padding-left: 5px;
+}
+
+/* "VS" central */
+.sj-vs {
+    font-family: 'BertholdBlock' !important;
+    color: var(--omen-purple);
+    font-size: 0.85rem !important;
+    margin: 0 5px;
+    flex: 0 0 auto !important;
+    text-align: center !important;
+}
+
+/* Diseño Responsive para que no se apelmace en móviles */
+@media(max-width: 1000px) {
+    .sorteo-jornadas { grid-template-columns: repeat(2, 1fr); }
+}
+@media(max-width: 600px) {
+    .sorteo-jornadas { grid-template-columns: 1fr; }
+}
