@@ -67,7 +67,7 @@ const audioChamp    = document.getElementById('audioChampions');
 // Cerrar modales
 modal.addEventListener('click', e => { if(e.target===modal) modal.classList.remove('active'); });
 tablaModal.addEventListener('click', e => { if(e.target===tablaModal) tablaModal.classList.remove('active'); });
-document.querySelectorAll('.btn-sonido').forEach(m => m.addEventListener('click', () => { audioMono.currentTime=0; audioMono.play(); }));
+document.querySelectorAll('.btn-sonido').forEach(m => m.addEventListener('click', () => { if(audioMono){audioMono.currentTime=0; audioMono.play();} }));
 
 // ----------------------------------------------------------------
 // RENDER INICIAL
@@ -108,7 +108,6 @@ btnSorteo.addEventListener('click', () => {
 });
 
 function prepararSorteo() {
-    // Panel de grupos
     const display = document.getElementById('sorteo-grupos-display');
     display.innerHTML = '';
     letras.forEach(g => {
@@ -126,7 +125,6 @@ function prepararSorteo() {
         display.appendChild(col);
     });
 
-    // Reset jornadas display
     for(let j=0;j<4;j++){
         const col = document.getElementById(`sj-${j}`);
         col.innerHTML = `<div class="sj-title">JORNADA ${j+1}</div>`;
@@ -136,7 +134,6 @@ function prepararSorteo() {
     document.getElementById('sorteo-match-reveal').textContent = '';
     document.getElementById('btn-cerrar-sorteo').style.display = 'none';
 
-    // Generar partidos distribuidos en 4 jornadas
     jornadas = generarJornadas();
     partidos_generados = jornadas.flat();
     calendario = [...partidos_generados];
@@ -144,8 +141,6 @@ function prepararSorteo() {
         resultados[clave(p.t1,p.t2)] = { s1:'', s2:'' };
     });
 
-    // El sorteo revela partido a partido (jornada por jornada)
-    // Primero todos los de J1, luego J2, etc.
     idx_sorteo = 0;
     total_sorteo = partidos_generados.length;
 
@@ -156,10 +151,6 @@ function prepararSorteo() {
 }
 
 function generarJornadas() {
-    // Genera 32 partidos únicos distribuidos en 4 jornadas de 8
-    // Restricción: cada equipo aparece exactamente 1 vez por jornada
-
-    // Primero generamos todos los partidos
     const todos = [];
     const vistos = new Set();
     const add = (a,b) => {
@@ -167,15 +158,12 @@ function generarJornadas() {
         if(!vistos.has(k)){ vistos.add(k); todos.push({t1:a,t2:b}); }
     };
 
-    // Intra-grupo: 4 grupos × 2 partidos = 8 partidos
     letras.forEach(g => {
         const arr = shuffle([...GRUPOS[g].map(e=>e.nombre)]);
         add(arr[0],arr[1]);
         add(arr[2],arr[3]);
     });
 
-    // Inter-grupos: cada equipo vs 1 de cada otro grupo
-    // 6 pares de grupos × 4 partidos = 24 partidos
     const pares = [['A','B'],['A','C'],['A','D'],['B','C'],['B','D'],['C','D']];
     pares.forEach(([g1,g2]) => {
         const a1 = shuffle([...GRUPOS[g1].map(e=>e.nombre)]);
@@ -183,17 +171,14 @@ function generarJornadas() {
         a1.forEach((t,i) => add(t, a2[i]));
     });
 
-    // Distribuir en 4 jornadas de 8 garantizando que cada equipo
-    // aparezca exactamente 1 vez por jornada
     return distribuirEnJornadas(shuffle(todos));
 }
 
 function distribuirEnJornadas(partidos) {
     const J = [[],[],[],[]];
-    const usadoPorJornada = [{},{},{},{}]; // nombre → true si ya está en esa jornada
+    const usadoPorJornada = [{},{},{},{}];
 
-    const puedeIr = (p, j) =>
-        !usadoPorJornada[j][p.t1] && !usadoPorJornada[j][p.t2];
+    const puedeIr = (p, j) => !usadoPorJornada[j][p.t1] && !usadoPorJornada[j][p.t2];
 
     const marcar = (p, j) => {
         usadoPorJornada[j][p.t1] = true;
@@ -201,8 +186,6 @@ function distribuirEnJornadas(partidos) {
         J[j].push(p);
     };
 
-    // Intentamos distribuir con backtracking simple
-    // (con solo 32 partidos y 16 equipos es rápido)
     const colocar = (idx) => {
         if(idx === partidos.length) return true;
         const p = partidos[idx];
@@ -218,7 +201,6 @@ function distribuirEnJornadas(partidos) {
         return false;
     };
 
-    // Intentar hasta que funcione (shuffle asegura variedad)
     let intentos = 0;
     while(!colocar(0) && intentos < 20){
         J.forEach(j=>j.length=0);
@@ -226,7 +208,6 @@ function distribuirEnJornadas(partidos) {
         shuffle(partidos);
         intentos++;
     }
-
     return J;
 }
 
@@ -236,7 +217,6 @@ function sortearSiguiente(ball) {
 
     sorteo_animando = true;
 
-    // Determinar jornada actual
     let acumulado = 0;
     let jornada_actual = 0;
     let idx_en_jornada = idx_sorteo;
@@ -255,12 +235,10 @@ function sortearSiguiente(ball) {
     const infoEl = document.getElementById('sorteo-info');
     const revealEl = document.getElementById('sorteo-match-reveal');
 
-    // Resaltar en panel de grupos
     document.querySelectorAll('.sg-team').forEach(el => el.classList.remove('highlighted'));
     document.getElementById(`sg-team-${match.t1.replace(/\s/g,'_')}`)?.classList.add('highlighted');
     document.getElementById(`sg-team-${match.t2.replace(/\s/g,'_')}`)?.classList.add('highlighted');
 
-    // Animar bola
     ball.classList.add('spinning');
     ball.textContent = '...';
     infoEl.textContent = `JORNADA ${jornada_actual+1} · PARTIDO ${idx_en_jornada+1}/8`;
@@ -272,7 +250,6 @@ function sortearSiguiente(ball) {
         ball.textContent = `J${jornada_actual+1}`;
         revealEl.textContent = `${match.t1} ⚡ ${match.t2}`;
 
-        // Añadir chip a la columna de jornada
         const sjCol = document.getElementById(`sj-${jornada_actual}`);
         const chip = document.createElement('div');
         chip.className = 'sj-match';
@@ -336,15 +313,13 @@ btnLiga.addEventListener('click', () => {
 function mostrarLiga() {
     container.innerHTML = '';
     
-    // Ocultamos el botón flotante tradicional de la tabla porque ahora estará integrada fijamente
     const tf = document.getElementById('btn-tabla-flotante');
     if (tf) tf.style.display = 'none';
 
-    // Contenedor Split Principal (Izquierda / Derecha)
     const splitContainer = document.createElement('div');
     splitContainer.className = 'liga-split-container';
 
-    // === COLUMNA IZQUIERDA: TABLA GENERAL DE CLASIFICACIÓN ===
+    // === COLUMNA IZQUIERDA: CLASIFICACIÓN ===
     const tablaCol = document.createElement('div');
     tablaCol.className = 'liga-tabla-col';
     
@@ -378,7 +353,7 @@ function mostrarLiga() {
         </div>`;
     splitContainer.appendChild(tablaCol);
 
-    // === COLUMNA DERECHA: MINI CARPETAS (ACCORDIONS DE JORNADAS) ===
+    // === COLUMNA DERECHA: ACORDEONES ===
     const jornadasCol = document.createElement('div');
     jornadasCol.className = 'liga-jornadas-col';
     
@@ -390,8 +365,8 @@ function mostrarLiga() {
     jornadas.forEach((partidos, ji) => {
         const accItem = document.createElement('div');
         accItem.className = 'accordion-jornada';
+        if(ji === 0) accItem.classList.add('active'); // Dejar la primera jornada abierta por defecto
 
-        // Estructura de minicarpeta interactiva con un slider interno
         accItem.innerHTML = `
             <div class="accordion-header">
                 <div class="folder-title">
@@ -406,22 +381,17 @@ function mostrarLiga() {
 
         const header = accItem.querySelector('.accordion-header');
         
-        // Un click extiende o contrae el slider de partidos
         header.addEventListener('click', (e) => {
-            if (e.detail === 1) { 
-                const isOpen = accItem.classList.contains('active');
-                // Opcional: Cierra las otras carpetas si quieres modo acordeón estricto
-                jornadasCol.querySelectorAll('.accordion-jornada').forEach(item => item.classList.remove('active'));
-                if (!isOpen) accItem.classList.add('active');
-            }
+            const isOpen = accItem.classList.contains('active');
+            jornadasCol.querySelectorAll('.accordion-jornada').forEach(item => item.classList.remove('active'));
+            if (!isOpen) accItem.classList.add('active');
         });
 
-        // Doble click despliega la ventana emergente original de edición de goles
-        header.addEventListener('dblclick', () => {
+        header.addEventListener('dblclick', (e) => {
+            e.stopPropagation();
             abrirPartidosJornada(ji);
         });
 
-        // Adjuntamos las tarjetas de partidos generadas
         const lista = accItem.querySelector(`#lista-j${ji}`);
         partidos.forEach(p => lista.appendChild(crearCardPartido(p, ji)));
 
@@ -432,14 +402,142 @@ function mostrarLiga() {
     container.appendChild(splitContainer);
 }
 
-// Sobreescribimos refreshJornada para que al actualizar goles, la tabla izquierda también mute en tiempo real
+// Genera las tarjetas individuales de enfrentamientos
+function crearCardPartido(p, ji) {
+    const eq1 = getEq(p.t1);
+    const eq2 = getEq(p.t2);
+    const r = resultados[clave(p.t1, p.t2)];
+    
+    const sorted = [p.t1, p.t2].sort();
+    const s1Val = (r && r.s1 !== '') ? ((p.t1 === sorted[0]) ? r.s1 : r.s2) : '—';
+    const s2Val = (r && r.s2 !== '') ? ((p.t1 === sorted[0]) ? r.s2 : r.s1) : '—';
+
+    const card = document.createElement('div');
+    card.className = 'partido-liga-card';
+    card.innerHTML = `
+        <div class="partido-equipo-col">
+            <img src="${eq1.logo}" onerror="this.style.display='none'">
+            <span class="partido-equipo-name">${p.t1}</span>
+        </div>
+        <div class="partido-score-col">
+            <span class="partido-score-num">${s1Val}</span>
+            <span class="partido-vs-text">VS</span>
+            <span class="partido-score-num">${s2Val}</span>
+        </div>
+        <div class="partido-equipo-col back-align">
+            <span class="partido-equipo-name">${p.t2}</span>
+            <img src="${eq2.logo}" onerror="this.style.display='none'">
+        </div>
+    `;
+    
+    card.addEventListener('dblclick', (e) => {
+        e.stopPropagation();
+        abrirModalResultadoPartido(p, ji);
+    });
+    
+    return card;
+}
+
+// Abre ventana emergente para un único partido
+function abrirModalResultadoPartido(p, ji) {
+    const eq1 = getEq(p.t1);
+    const eq2 = getEq(p.t2);
+    const r = resultados[clave(p.t1, p.t2)];
+    
+    const sorted = [p.t1, p.t2].sort();
+    const s1prev = (p.t1 === sorted[0]) ? r.s1 : r.s2;
+    const s2prev = (p.t1 === sorted[0]) ? r.s2 : r.s1;
+
+    abrirModalResultado(eq1, eq2, s1prev, s2prev, (s1, s2) => {
+        if (p.t1 === sorted[0]) {
+            r.s1 = s1; r.s2 = s2;
+        } else {
+            r.s1 = s2; r.s2 = s1;
+        }
+        refreshJornada(ji);
+    });
+}
+
+// Abre ventana masiva para editar los 8 partidos de la jornada seleccionada
+function abrirPartidosJornada(ji) {
+    const partidos = jornadas[ji];
+    modalCard.innerHTML = `
+        <h2 style="font-family:'BertholdBlock'; text-align:center; color:var(--omen-cyan); margin-bottom:15px; font-size:1.4rem; letter-spacing:2px">EDITAR JORNADA ${ji + 1}</h2>
+        <div style="max-height: 380px; overflow-y: auto; padding-right: 10px;" id="modal-lista-partidos-jornada">
+            ${partidos.map((p, i) => {
+                const eq1 = getEq(p.t1);
+                const eq2 = getEq(p.t2);
+                const r = resultados[clave(p.t1, p.t2)];
+                const sorted = [p.t1, p.t2].sort();
+                const s1Val = (r && r.s1 !== '') ? ((p.t1 === sorted[0]) ? r.s1 : r.s2) : '';
+                const s2Val = (r && r.s2 !== '') ? ((p.t1 === sorted[0]) ? r.s2 : r.s1) : '';
+                return `
+                    <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:12px; background:rgba(255,255,255,0.03); padding:8px; border-radius:4px; border:1px solid rgba(255,255,255,0.05)">
+                        <div style="flex:1; display:flex; align-items:center; gap:6px; font-size:0.85rem; width:130px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                            <img src="${eq1.logo}" style="width:18px; height:18px; object-fit:contain" onerror="this.style.display='none'">
+                            <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${p.t1}</span>
+                        </div>
+                        <input type="number" class="input-score-jornada" data-idx="${i}" data-team="1" value="${s1Val}" style="width:45px; background:#111; border:1px solid var(--omen-purple); color:#fff; text-align:center; border-radius:3px; padding:2px;" min="0" placeholder="0">
+                        <span style="color:var(--omen-purple)">—</span>
+                        <input type="number" class="input-score-jornada" data-idx="${i}" data-team="2" value="${s2Val}" style="width:45px; background:#111; border:1px solid var(--omen-purple); color:#fff; text-align:center; border-radius:3px; padding:2px;" min="0" placeholder="0">
+                        <div style="flex:1; display:flex; align-items:center; justify-content:flex-end; gap:6px; font-size:0.85rem; width:130px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; text-align:right;">
+                            <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${p.t2}</span>
+                            <img src="${eq2.logo}" style="width:18px; height:18px; object-fit:contain" onerror="this.style.display='none'">
+                        </div>
+                    </div>
+                `;
+            }).join('')}
+        </div>
+        <button class="btn-valorant" id="btn-guardar-jornada" style="width:100%; margin-top:15px;"><span class="btn-content">GUARDAR JORNADA</span></button>
+    `;
+    modal.classList.add('active');
+    
+    document.getElementById('btn-guardar-jornada').onclick = () => {
+        let valid = true;
+        const updates = [];
+        
+        for (let i = 0; i < partidos.length; i++) {
+            const inp1 = modalCard.querySelector(`.input-score-jornada[data-idx="${i}"][data-team="1"]`);
+            const inp2 = modalCard.querySelector(`.input-score-jornada[data-idx="${i}"][data-team="2"]`);
+            
+            if (inp1.value !== '' || inp2.value !== '') {
+                const s1 = parseInt(inp1.value);
+                const s2 = parseInt(inp2.value);
+                if (isNaN(s1) || isNaN(s2)) {
+                    alert('Introduce ambos marcadores para los partidos editados.');
+                    valid = false; break;
+                }
+                if (s1 === s2) {
+                    alert('No puede haber empates.');
+                    valid = false; break;
+                }
+                updates.push({ idx: i, s1, s2 });
+            }
+        }
+        
+        if (valid) {
+            updates.forEach(up => {
+                const p = partidos[up.idx];
+                const r = resultados[clave(p.t1, p.t2)];
+                const sorted = [p.t1, p.t2].sort();
+                if (p.t1 === sorted[0]) {
+                    r.s1 = up.s1; r.s2 = up.s2;
+                } else {
+                    r.s1 = up.s2; r.s2 = up.s1;
+                }
+            });
+            modal.classList.remove('active');
+            refreshJornada(ji);
+        }
+    };
+}
+
 function refreshJornada(ji) {
     const lista = document.getElementById(`lista-j${ji}`);
     if (!lista) return;
     lista.innerHTML = '';
     jornadas[ji].forEach(p => lista.appendChild(crearCardPartido(p, ji)));
     
-    // Actualización reactiva instantánea del bloque de Clasificación
     const tbody = document.querySelector('.contenedor-tabla-directa tbody');
     if (tbody) {
         const ranking = getRanking();
@@ -462,8 +560,62 @@ function refreshJornada(ji) {
 }
 
 // ----------------------------------------------------------------
-// TABLA GENERAL
+// FUNCIONES ESTADÍSTICAS MIGRADAS
 // ----------------------------------------------------------------
+function getPartidosEquipo(nombre) {
+    return calendario.filter(p => p.t1 === nombre || p.t2 === nombre);
+}
+
+function getWins(nombre) {
+    let wins = 0;
+    calendario.forEach(p => {
+        const r = resultados[clave(p.t1, p.t2)];
+        if (r && r.s1 !== '' && r.s2 !== '') {
+            const sorted = [p.t1, p.t2].sort();
+            const s1 = parseInt(r.s1);
+            const s2 = parseInt(r.s2);
+            if (nombre === sorted[0] && s1 > s2) wins++;
+            if (nombre === sorted[1] && s2 > s1) wins++;
+        }
+    });
+    return wins;
+}
+
+function getPuntos(nombre) {
+    let pts = 0;
+    calendario.forEach(p => {
+        const r = resultados[clave(p.t1, p.t2)];
+        if (r && r.s1 !== '' && r.s2 !== '') {
+            const sorted = [p.t1, p.t2].sort();
+            const s1 = parseInt(r.s1);
+            const s2 = parseInt(r.s2);
+            if (nombre === sorted[0] && s1 > s2) pts += 3;
+            if (nombre === sorted[1] && s2 > s1) pts += 3;
+            if (s1 === s2) pts += 1;
+        }
+    });
+    return pts;
+}
+
+function getDiff(nombre) {
+    let favor = 0;
+    let contra = 0;
+    calendario.forEach(p => {
+        const r = resultados[clave(p.t1, p.t2)];
+        if (r && r.s1 !== '' && r.s2 !== '') {
+            const sorted = [p.t1, p.t2].sort();
+            const s1 = parseInt(r.s1);
+            const s2 = parseInt(r.s2);
+            if (nombre === sorted[0]) {
+                favor += s1; contra += s2;
+            } else if (nombre === sorted[1]) {
+                favor += s2; contra += s1;
+            }
+        }
+    });
+    return favor - contra;
+}
+
 function getRanking() {
     return equipos.map(eq => ({
         eq,
@@ -520,7 +672,7 @@ function mostrarTabla() {
 }
 
 // ----------------------------------------------------------------
-// PLAYOFFS (5º al 12º → 4 partidos → 4 pasan a cuartos)
+// PLAYOFFS (5º al 12º → 4 partidos)
 // ----------------------------------------------------------------
 btnPlayoffs.addEventListener('click', () => {
     mostrarPlayoffs();
@@ -530,12 +682,12 @@ btnPlayoffs.addEventListener('click', () => {
 
 function mostrarPlayoffs() {
     container.innerHTML = '';
-    document.getElementById('btn-tabla-flotante').style.display = 'none';
+    const tf = document.getElementById('btn-tabla-flotante');
+    if (tf) tf.style.display = 'none';
 
     const ranking = getRanking();
-    const zona = ranking.slice(4,12); // posiciones 5ª a 12ª (índices 4-11)
+    const zona = ranking.slice(4,12);
 
-    // Emparejamientos: 5ºvs12º, 6ºvs11º, 7ºvs10º, 8ºvs9º
     playoffsData = [
         { t1:zona[0].eq, t2:zona[7].eq, seed1:5,  seed2:12, ganador:null, s1:'', s2:'' },
         { t1:zona[1].eq, t2:zona[6].eq, seed1:6,  seed2:11, ganador:null, s1:'', s2:'' },
@@ -567,7 +719,6 @@ function mostrarPlayoffs() {
         );
         grid.appendChild(el);
     });
-
     container.appendChild(wrapper);
 }
 
@@ -633,9 +784,6 @@ function iniciarBracket() {
     const top4 = ranking.slice(0,4).map(r=>r.eq);
     const gpWinners = playoffsData.map(pd => pd.ganador || { nombre:'TBD', logo:'' });
 
-    // Cuartos de final (4 partidos):
-    // QF1: #1 vs GP4  |  QF2: #2 vs GP3
-    // QF3: #3 vs GP2  |  QF4: #4 vs GP1
     bracketData = {
         qf: [
             { id:'qf0', t1:top4[0], t2:gpWinners[3], s1:'', s2:'', ganador:null },
@@ -651,29 +799,19 @@ function iniciarBracket() {
             { id:'fn0', t1:{nombre:'TBD',logo:''}, t2:{nombre:'TBD',logo:''}, s1:'', s2:'', ganador:null },
         ]
     };
-
     renderBracket();
 }
 
 function renderBracket() {
     container.innerHTML = '';
-
     const outer = document.createElement('div');
     outer.className = 'bracket-outer';
-
     const bc = document.createElement('div');
     bc.className = 'bracket-container';
 
-    // Columna QF
-    const colQF = crearColumna('CUARTOS DE FINAL', bracketData.qf, 'qf');
-    // Columna SF
-    const colSF = crearColumna('SEMIFINALES', bracketData.sf, 'sf');
-    // Columna Final
-    const colFN = crearColumna('⚡ GRAN FINAL', bracketData.fn, 'fn');
-
-    bc.appendChild(colQF);
-    bc.appendChild(colSF);
-    bc.appendChild(colFN);
+    bc.appendChild(crearColumna('CUARTOS DE FINAL', bracketData.qf, 'qf'));
+    bc.appendChild(crearColumna('SEMIFINALES', bracketData.sf, 'sf'));
+    bc.appendChild(crearColumna('⚡ GRAN FINAL', bracketData.fn, 'fn'));
 
     outer.appendChild(bc);
     container.appendChild(outer);
@@ -689,16 +827,9 @@ function crearColumna(titulo, partidos, fase) {
     tit.textContent = titulo;
     col.appendChild(tit);
 
-    // Espaciado vertical para alinear con la siguiente columna
-    const alturas = { qf: [0,1,2,3], sf: [0.5, 2.5], fn: [1.5] };
-    const gaps    = { qf: 15, sf: 15, fn: 15 };
-    const boxH    = 100; // altura aprox de un match-box en px
-
     partidos.forEach((p, i) => {
-        const box = crearMatchBox(p, fase, i);
-        col.appendChild(box);
+        col.appendChild(crearMatchBox(p, fase, i));
     });
-
     return col;
 }
 
@@ -723,7 +854,6 @@ function crearMatchBox(p, fase, idx) {
             });
         };
     }
-
     return box;
 }
 
@@ -747,8 +877,6 @@ function renderMatchBox(box, p) {
 }
 
 function avanzarBracket(fase, idx, ganador) {
-    // QF → SF: QF0→SF0.t1, QF1→SF0.t2, QF2→SF1.t1, QF3→SF1.t2
-    // SF → FN: SF0→FN0.t1, SF1→FN0.t2
     let destFase, destIdx, destSlot;
 
     if(fase==='qf') {
@@ -763,12 +891,10 @@ function avanzarBracket(fase, idx, ganador) {
     const arr = destFase==='sf' ? bracketData.sf : bracketData.fn;
     arr[destIdx][destSlot] = ganador;
 
-    // Re-renderizar el match destino
     const destBox = document.getElementById(`mb-${arr[destIdx].id}`);
     if(!destBox) return;
     renderMatchBox(destBox, arr[destIdx]);
 
-    // Si ya tiene los 2 equipos, activar dblclick
     const p = arr[destIdx];
     if(p.t1.nombre!=='TBD' && p.t2.nombre!=='TBD') {
         destBox.classList.remove('tbd');
