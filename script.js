@@ -147,13 +147,13 @@ function publicarSonido() {
 // ----------------------------------------------------------------
 // RECEPCIÓN DE DATOS EN TIEMPO REAL (SUBSCRIBE)
 // ----------------------------------------------------------------
-(async () => {
-    await channel.subscribe('cambio_estado', (message) => {
+channel.subscribe((message) => {
+    console.log('Mensaje recibido:', message.name);
+    if (message.name === 'cambio_estado') {
         estadoApp = message.data;
         procesarCambioEstado();
-    });
-
-    await channel.subscribe('reproducir_sonido', (message) => {
+    }
+    if (message.name === 'reproducir_sonido') {
         if (message.data.tipo === 'mono' && audioMono) {
             audioMono.currentTime = 0;
             audioMono.play().catch(e => console.log("Interacción requerida para audio"));
@@ -162,13 +162,11 @@ function publicarSonido() {
             audioChamp.currentTime = 0;
             audioChamp.play().catch(e => console.log("Interacción requerida para audio"));
         }
-    });
-
-    // Sin presencia — el espectador pide estado al conectar via mensaje normal
-    await channel.subscribe('pedir_estado', () => {
+    }
+    if (message.name === 'pedir_estado') {
         if (!isSpectator) enviarEstado();
-    });
-})();
+    }
+});
 
 // ----------------------------------------------------------------
 // MÁQUINA DE ESTADOS VISUAL
