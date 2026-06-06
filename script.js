@@ -31,7 +31,10 @@ const ably = new Ably.Realtime({
     key: ABLY_API_KEY,
     clientId: (isSpectator ? 'spectator_' : 'admin_') + Math.random().toString(36).substring(2, 9)
 });
-const channel = ably.channels.get(`copa_primate_${roomId}`);
+// rewind:1 hace que el nuevo suscriptor reciba el último mensaje publicado automáticamente
+const channel = ably.channels.get(`copa_primate_${roomId}`, {
+    params: { rewind: '1' }
+});
 
 // --- EQUIPOS Y GRUPOS ---
 const GRUPOS = {
@@ -160,16 +163,7 @@ channel.subscribe('reproducir_sonido', (message) => {
     }
 });
 
-// Forzar petición de estado al entrar si somos espectadores
-channel.presence.enter();
-
-// El admin reenvía estado cada vez que alguien nuevo entra al canal
-channel.presence.subscribe('enter', () => {
-    if (!isSpectator) {
-        setTimeout(() => enviarEstado(), 500);
-    }
-});
-
+// Sin presencia — el espectador pide estado al conectar via mensaje normal
 channel.subscribe('pedir_estado', () => {
     if (!isSpectator) enviarEstado();
 });
@@ -924,16 +918,15 @@ function distribuirEnJornadas(partidos) {
 // Carga visual cuando Ably esté conectado
 ably.connection.on('connected', () => {
     console.log('Ably conectado ✓');
-    if (isSpectator) {
-        // El espectador pide el estado al admin
-        channel.publish('pedir_estado', {});
-    } else {
-        // El admin intenta restaurar su estado guardado
+    if (!isSpectator) {
+        // El admin restaura su estado guardado y lo publica
         const restaurado = cargarEstadoLocal();
-        if (restaurado) {
-            // Tenemos estado guardado, lo publicamos para que los espectadores se sincronicen
-            channel.publish('cambio_estado', estadoApp);
-        }
         procesarCambioEstado();
+        if (restaurado) {
+            // Publicar para que cualquier espectador conectado se sincronice
+            setTimeout(() => enviarEstado(), 300);
+        }
     }
+    // El espectador no hace nada — gracias a rewind:1 recibirá
+    // el último 'cambio_estado' automáticamente al suscribirse
 });
