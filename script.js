@@ -27,7 +27,10 @@ if (!roomId) {
 const isSpectator = urlParams.get('view') === 'spectator';
 
 // Inicializar conexión con Ably
-const ably = new Ably.Realtime({ key: ABLY_API_KEY });
+const ably = new Ably.Realtime({
+    key: ABLY_API_KEY,
+    clientId: (isSpectator ? 'spectator_' : 'admin_') + Math.random().toString(36).substring(2, 9)
+});
 const channel = ably.channels.get(`copa_primate_${roomId}`);
 
 // --- EQUIPOS Y GRUPOS ---
