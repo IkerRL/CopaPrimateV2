@@ -931,11 +931,24 @@ ably.connection.on('connected', () => {
     if (!isSpectator) {
         const restaurado = cargarEstadoLocal();
         procesarCambioEstado();
-        if (restaurado) {
-            setTimeout(() => enviarEstado(), 300);
-        }
+        // Siempre publicar al conectar para que espectadores reciban el estado
+        setTimeout(() => enviarEstado(), 500);
     } else {
-        // Espectador: pedir estado al admin
-        channel.publish('pedir_estado', {});
+        // Espectador: pedir estado al admin, con reintentos
+        let intentos = 0;
+        const pedirEstado = () => {
+            console.log('Pidiendo estado... intento', intentos + 1);
+            channel.publish('pedir_estado', {});
+            intentos++;
+            if (intentos < 5) {
+                setTimeout(() => {
+                    // Si aún no tenemos datos reales, reintentamos
+                    if (estadoApp.calendario.length === 0 && estadoApp.faseActual === 'inicial') {
+                        pedirEstado();
+                    }
+                }, 2000);
+            }
+        };
+        setTimeout(pedirEstado, 500);
     }
 });
