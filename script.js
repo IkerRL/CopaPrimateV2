@@ -256,32 +256,42 @@ function renderInicial() {
 // ----------------------------------------------------------------
 if (!isSpectator) {
     if(btnSorteo) btnSorteo.addEventListener('click', () => {
+        console.log('BTN: Sorteo');
         estadoApp.faseActual = 'inicial';
         prepararSorteo();
+        procesarCambioEstado();
         enviarEstado();
     });
 
     if(btnLiga) btnLiga.addEventListener('click', () => {
+        console.log('BTN: Liga');
         estadoApp.faseActual = 'liga';
+        procesarCambioEstado();
         enviarEstado();
     });
 
     if(btnPlayoffs) btnPlayoffs.addEventListener('click', () => {
+        console.log('BTN: Playoffs');
         estadoApp.faseActual = 'playoffs';
         generarEstructuraPlayoffs();
+        procesarCambioEstado();
         enviarEstado();
     });
 
     if(btnBracket) btnBracket.addEventListener('click', () => {
+        console.log('BTN: Bracket');
         estadoApp.faseActual = 'bracket';
         generarEstructuraBracket();
+        procesarCambioEstado();
         enviarEstado();
     });
 
     const btnCerrarSorteo = document.getElementById('btn-cerrar-sorteo');
     if(btnCerrarSorteo) btnCerrarSorteo.addEventListener('click', () => {
+        console.log('BTN: Cerrar sorteo');
         estadoApp.sorteoCompletado = true;
         if(sorteoOverlay) sorteoOverlay.classList.remove('active');
+        procesarCambioEstado();
         enviarEstado();
     });
 }
@@ -919,14 +929,13 @@ function distribuirEnJornadas(partidos) {
 ably.connection.on('connected', () => {
     console.log('Ably conectado ✓');
     if (!isSpectator) {
-        // El admin restaura su estado guardado y lo publica
         const restaurado = cargarEstadoLocal();
         procesarCambioEstado();
         if (restaurado) {
-            // Publicar para que cualquier espectador conectado se sincronice
             setTimeout(() => enviarEstado(), 300);
         }
+    } else {
+        // Espectador: pedir estado al admin
+        channel.publish('pedir_estado', {});
     }
-    // El espectador no hace nada — gracias a rewind:1 recibirá
-    // el último 'cambio_estado' automáticamente al suscribirse
 });
