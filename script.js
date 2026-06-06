@@ -3,7 +3,7 @@
 // ================================================================
 
 // !!! CONFIGURACIÓN DE ABLY !!!
-// Intentará leer de las variables de Vercel, si no, buscará una ventana global (para local)
+// Pega aquí tu clave Root real de Ably
 const ABLY_API_KEY = 'ngPWJA.-sqsQQ:zUVSXMBliVDlh2zkgBvKFF2JEPi4dCOlAQRzMX_md4E';
 
 // --- LÓGICA DE MULTISALA (ROOMS) Y ROLES ---
@@ -14,7 +14,13 @@ let roomId = urlParams.get('room');
 if (!roomId) {
     roomId = 'primate_' + Math.random().toString(36).substring(2, 7);
     urlParams.set('room', roomId);
-    window.history.replaceState({}, '', `${window.location.pathname}?${urlParams.toString()}`);
+    
+    // TRUCO PARA EVITAR QUE FALLE EN LOCAL (file://) O VERCEL:
+    try {
+        window.history.replaceState({}, '', `${window.location.pathname}?${urlParams.toString()}`);
+    } catch (e) {
+        console.warn("Aviso: Trabajando en modo archivo local. Sala asignada: " + roomId);
+    }
 }
 
 // Comprobar si es un overlay/espectador
@@ -86,11 +92,11 @@ const audioChamp    = document.getElementById('audioChampions');
 
 // Ocultar controles si es espectador de forma agresiva
 if (isSpectator) {
-    document.getElementById('footer-controls').style.display = 'none';
-    // Desactivar clicks en fondos de modales para el espectador
+    const footer = document.getElementById('footer-controls');
+    if(footer) footer.style.display = 'none';
 } else {
-    modal.addEventListener('click', e => { if(e.target===modal) modal.classList.remove('active'); });
-    tablaModal.addEventListener('click', e => { if(e.target===tablaModal) tablaModal.classList.remove('active'); });
+    if(modal) modal.addEventListener('click', e => { if(e.target===modal) modal.classList.remove('active'); });
+    if(tablaModal) tablaModal.addEventListener('click', e => { if(e.target===tablaModal) tablaModal.classList.remove('active'); });
     document.querySelectorAll('.btn-sonido').forEach(m => m.addEventListener('click', () => { 
         publicarSonido();
     }));
@@ -142,16 +148,16 @@ if (isSpectator) {
 // ----------------------------------------------------------------
 function procesarCambioEstado() {
     // Cerrar overlays innecesarios dinámicamente si cambió de fase
-    if (estadoApp.faseActual !== 'inicial') {
+    if (estadoApp.faseActual !== 'inicial' && sorteoOverlay) {
         sorteoOverlay.classList.remove('active');
     }
 
     // Gestionar botones del administrador dinámicamente
     if (!isSpectator) {
-        btnSorteo.style.display = estadoApp.faseActual === 'inicial' ? 'inline-block' : 'none';
-        btnLiga.style.display = (estadoApp.faseActual === 'inicial' && estadoApp.sorteoCompletado) ? 'inline-block' : 'none';
-        btnPlayoffs.style.display = estadoApp.faseActual === 'liga' ? 'inline-block' : 'none';
-        btnBracket.style.display = estadoApp.faseActual === 'playoffs' ? 'inline-block' : 'none';
+        if(btnSorteo) btnSorteo.style.display = estadoApp.faseActual === 'inicial' ? 'inline-block' : 'none';
+        if(btnLiga) btnLiga.style.display = (estadoApp.faseActual === 'inicial' && estadoApp.sorteoCompletado) ? 'inline-block' : 'none';
+        if(btnPlayoffs) btnPlayoffs.style.display = estadoApp.faseActual === 'liga' ? 'inline-block' : 'none';
+        if(btnBracket) btnBracket.style.display = estadoApp.faseActual === 'playoffs' ? 'inline-block' : 'none';
         
         let tf = document.getElementById('btn-tabla-flotante');
         if (estadoApp.sorteoCompletado && estadoApp.faseActual === 'inicial') {
@@ -174,8 +180,7 @@ function procesarCambioEstado() {
         case 'inicial':
             renderInicial();
             if (estadoApp.idx_sorteo > 0) {
-                // Sorteo en proceso o terminado, abrir overlay si no está activo
-                sorteoOverlay.classList.add('active');
+                if(sorteoOverlay) sorteoOverlay.classList.add('active');
                 reconstruirPantallaSorteo();
             }
             break;
@@ -195,6 +200,7 @@ function procesarCambioEstado() {
 // RENDER INICIAL
 // ----------------------------------------------------------------
 function renderInicial() {
+    if(!container) return;
     container.innerHTML = '';
     container.style.cssText = '';
     equipos.forEach(eq => {
@@ -224,33 +230,33 @@ function renderInicial() {
 // ACCIONES DEL ADMINISTRADOR (BOTONES CLICK)
 // ----------------------------------------------------------------
 if (!isSpectator) {
-    btnSorteo.addEventListener('click', () => {
+    if(btnSorteo) btnSorteo.addEventListener('click', () => {
         estadoApp.faseActual = 'inicial';
         prepararSorteo();
         enviarEstado();
     });
 
-    btnLiga.addEventListener('click', () => {
+    if(btnLiga) btnLiga.addEventListener('click', () => {
         estadoApp.faseActual = 'liga';
         enviarEstado();
-        procesarChangeFase();
     });
 
-    btnPlayoffs.addEventListener('click', () => {
+    if(btnPlayoffs) btnPlayoffs.addEventListener('click', () => {
         estadoApp.faseActual = 'playoffs';
         generarEstructuraPlayoffs();
         enviarEstado();
     });
 
-    btnBracket.addEventListener('click', () => {
+    if(btnBracket) btnBracket.addEventListener('click', () => {
         estadoApp.faseActual = 'bracket';
         generarEstructuraBracket();
         enviarEstado();
     });
 
-    document.getElementById('btn-cerrar-sorteo').addEventListener('click', () => {
+    const btnCerrarSorteo = document.getElementById('btn-cerrar-sorteo');
+    if(btnCerrarSorteo) btnCerrarSorteo.addEventListener('click', () => {
         estadoApp.sorteoCompletado = true;
-        sorteoOverlay.classList.remove('active');
+        if(sorteoOverlay) sorteoOverlay.classList.remove('active');
         enviarEstado();
     });
 }
@@ -276,6 +282,7 @@ function prepararSorteo() {
 
 function reconstruirPantallaSorteo() {
     const display = document.getElementById('sorteo-grupos-display');
+    if(!display) return;
     display.innerHTML = '';
     letras.forEach(g => {
         const col = document.createElement('div');
@@ -292,11 +299,10 @@ function reconstruirPantallaSorteo() {
     });
 
     for(let j=0;j<4;j++){
-        document.getElementById(`sj-${j}`).innerHTML = `<div class="sj-title">JORNADA ${j+1}</div>`;
+        const sj = document.getElementById(`sj-${j}`);
+        if(sj) sj.innerHTML = `<div class="sj-title">JORNADA ${j+1}</div>`;
     }
 
-    // Re-renderizar partidos ya sorteados acumulados en el historial visual
-    let acumulado = 0;
     for(let i=0; i<estadoApp.idx_sorteo; i++) {
         let jActual = 0;
         let totalJ0 = estadoApp.jornadas[0].length;
@@ -313,6 +319,7 @@ function reconstruirPantallaSorteo() {
         const eq2 = getEq(match.t2);
         
         const sjCol = document.getElementById(`sj-${jActual}`);
+        if(!sjCol) continue;
         const chip = document.createElement('div');
         chip.className = 'sj-match visible';
         chip.innerHTML = `
@@ -326,22 +333,25 @@ function reconstruirPantallaSorteo() {
     const infoEl = document.getElementById('sorteo-info');
     const revealEl = document.getElementById('sorteo-match-reveal');
 
-    if (estadoApp.idx_sorteo >= estadoApp.calendario.length) {
-        ball.textContent = '✓';
-        ball.style.cursor = 'default';
-        ball.onclick = null;
-        infoEl.textContent = '¡SORTEO COMPLETADO! 32 PARTIDOS';
-        revealEl.textContent = '';
-        if (!isSpectator) document.getElementById('btn-cerrar-sorteo').style.display = 'block';
-    } else {
-        ball.textContent = '▶';
-        if (isSpectator) {
+    if(ball && infoEl && revealEl) {
+        if (estadoApp.idx_sorteo >= estadoApp.calendario.length) {
+            ball.textContent = '✓';
             ball.style.cursor = 'default';
-            infoEl.textContent = 'Esperando sorteo del Administrador...';
+            ball.onclick = null;
+            infoEl.textContent = '¡SORTEO COMPLETADO! 32 PARTIDOS';
+            revealEl.textContent = '';
+            const btnCerrar = document.getElementById('btn-cerrar-sorteo');
+            if (!isSpectator && btnCerrar) btnCerrar.style.display = 'block';
         } else {
-            ball.style.cursor = 'pointer';
-            ball.onclick = () => ejecutarGiroSorteoLocal();
-            infoEl.textContent = 'Pulsa el balón para sortear';
+            ball.textContent = '▶';
+            if (isSpectator) {
+                ball.style.cursor = 'default';
+                infoEl.textContent = 'Esperando sorteo del Administrador...';
+            } else {
+                ball.style.cursor = 'pointer';
+                ball.onclick = () => ejecutarGiroSorteoLocal();
+                infoEl.textContent = 'Pulsa el balón para sortear';
+            }
         }
     }
 }
@@ -351,18 +361,15 @@ function ejecutarGiroSorteoLocal() {
     if (local_animando_sorteo || isSpectator) return;
     local_animando_sorteo = true;
 
-    // Publicamos sonido de ruleta en toda la red
     channel.publish('reproducir_sonido', { tipo: 'mono' });
 
     const ball = document.getElementById('sorteo-ball');
-    ball.classList.add('spinning');
+    if(ball) ball.classList.add('spinning');
     
     setTimeout(() => {
-        ball.classList.remove('spinning');
+        if(ball) ball.classList.remove('spinning');
         estadoApp.idx_sorteo++;
         local_animando_sorteo = false;
-        
-        // Enviamos el incremento del índice a la red para refrescar a todos
         enviarEstado();
     }, 800);
 }
@@ -371,6 +378,7 @@ function ejecutarGiroSorteoLocal() {
 // LIGA BINDINGS
 // ----------------------------------------------------------------
 function actualizarVistaLiga() {
+    if(!container) return;
     container.innerHTML = '';
     const splitContainer = document.createElement('div');
     splitContainer.className = 'liga-split-container';
@@ -417,7 +425,7 @@ function actualizarVistaLiga() {
 
     estadoApp.jornadas.forEach((partidos, ji) => {
         const accItem = document.createElement('div');
-        accItem.className = 'accordion-jornada active'; // Los mantenemos abiertos para simplificar sincronías visuales rápido
+        accItem.className = 'accordion-jornada active';
 
         accItem.innerHTML = `
             <div class="accordion-header">
@@ -499,6 +507,7 @@ function abrirModalResultadoPartido(p, ji) {
 
 function abrirPartidosJornada(ji) {
     const partidos = estadoApp.jornadas[ji];
+    if(!modalCard) return;
     modalCard.innerHTML = `
         <h2 style="font-family:'BertholdBlock'; text-align:center; color:var(--omen-cyan); margin-bottom:15px; font-size:1.4rem; letter-spacing:2px">EDITAR JORNADA ${ji + 1}</h2>
         <div style="max-height: 380px; overflow-y: auto; padding-right: 10px;">
@@ -525,7 +534,7 @@ function abrirPartidosJornada(ji) {
         </div>
         <button class="btn-valorant" id="btn-guardar-jornada" style="width:100%; margin-top:15px;"><span class="btn-content">GUARDAR JORNADA</span></button>`;
     
-    modal.classList.add('active');
+    if(modal) modal.classList.add('active');
     
     document.getElementById('btn-guardar-jornada').onclick = () => {
         let valid = true; const updates = [];
@@ -545,7 +554,7 @@ function abrirPartidosJornada(ji) {
                 if (p.t1 === sorted[0]) { r.s1 = up.s1; r.s2 = up.s2; } 
                 else { r.s1 = up.s2; r.s2 = up.s1; }
             });
-            modal.classList.remove('active');
+            if(modal) modal.classList.remove('active');
             enviarEstado();
         }
     };
@@ -558,14 +567,15 @@ function generarEstructuraPlayoffs() {
     const ranking = getRanking();
     const zona = ranking.slice(4,12);
     estadoApp.playoffsData = [
-        { t1:zona[0].eq, t2:zona[7].eq, seed1:5,  seed2:12, ganador:null, s1:'', s2:'' },
-        { t1:zona[1].eq, t2:zona[6].eq, seed1:6,  seed2:11, ganador:null, s1:'', s2:'' },
-        { t1:zona[2].eq, t2:zona[5].eq, seed1:7,  seed2:10, ganador:null, s1:'', s2:'' },
-        { t1:zona[3].eq, t2:zona[4].eq, seed1:8,  seed2:9,  ganador:null, s1:'', s2:'' },
+        { t1:zona[0]?.eq||{nombre:'TBD',logo:''}, t2:zona[7]?.eq||{nombre:'TBD',logo:''}, seed1:5,  seed2:12, ganador:null, s1:'', s2:'' },
+        { t1:zona[1]?.eq||{nombre:'TBD',logo:''}, t2:zona[6]?.eq||{nombre:'TBD',logo:''}, seed1:6,  seed2:11, ganador:null, s1:'', s2:'' },
+        { t1:zona[2]?.eq||{nombre:'TBD',logo:''}, t2:zona[5]?.eq||{nombre:'TBD',logo:''}, seed1:7,  seed2:10, ganador:null, s1:'', s2:'' },
+        { t1:zona[3]?.eq||{nombre:'TBD',logo:''}, t2:zona[4]?.eq||{nombre:'TBD',logo:''}, seed1:8,  seed2:9,  ganador:null, s1:'', s2:'' },
     ];
 }
 
 function actualizarVistaPlayoffs() {
+    if(!container) return;
     container.innerHTML = '';
     const wrapper = document.createElement('div');
     wrapper.className = 'playoffs-wrapper';
@@ -580,7 +590,7 @@ function actualizarVistaPlayoffs() {
         el.className = 'playoff-match' + (pd.ganador ? ' done' : '');
         renderPlayoffMatch(el, pd);
         
-        if (!isSpectator) {
+        if (!isSpectator && pd.t1.nombre !== 'TBD' && pd.t2.nombre !== 'TBD') {
             el.ondblclick = () => abrirModalResultado(pd.t1, pd.t2, pd.s1, pd.s2, (s1, s2) => {
                 pd.s1 = s1; pd.s2 = s2;
                 pd.ganador = s1 > s2 ? pd.t1 : pd.t2;
@@ -619,10 +629,10 @@ function generarEstructuraBracket() {
 
     estadoApp.bracketData = {
         qf: [
-            { id:'qf0', t1:top4[0], t2:gpWinners[3], s1:'', s2:'', ganador:null },
-            { id:'qf1', t1:top4[1], t2:gpWinners[2], s1:'', s2:'', ganador:null },
-            { id:'qf2', t1:top4[2], t2:gpWinners[1], s1:'', s2:'', ganador:null },
-            { id:'qf3', t1:top4[3], t2:gpWinners[0], s1:'', s2:'', ganador:null },
+            { id:'qf0', t1:top4[0]||{nombre:'TBD',logo:''}, t2:gpWinners[3]||{nombre:'TBD',logo:''}, s1:'', s2:'', ganador:null },
+            { id:'qf1', t1:top4[1]||{nombre:'TBD',logo:''}, t2:gpWinners[2]||{nombre:'TBD',logo:''}, s1:'', s2:'', ganador:null },
+            { id:'qf2', t1:top4[2]||{nombre:'TBD',logo:''}, t2:gpWinners[1]||{nombre:'TBD',logo:''}, s1:'', s2:'', ganador:null },
+            { id:'qf3', t1:top4[3]||{nombre:'TBD',logo:''}, t2:gpWinners[0]||{nombre:'TBD',logo:''}, s1:'', s2:'', ganador:null },
         ],
         sf: [
             { id:'sf0', t1:{nombre:'TBD',logo:''}, t2:{nombre:'TBD',logo:''}, s1:'', s2:'', ganador:null },
@@ -636,7 +646,7 @@ function generarEstructuraBracket() {
 }
 
 function actualizarVistaBracket() {
-    if (!estadoApp.bracketData) return;
+    if (!estadoApp.bracketData || !container) return;
     container.innerHTML = '';
     const outer = document.createElement('div'); outer.className = 'bracket-outer';
     const bc = document.createElement('div'); bc.className = 'bracket-container';
@@ -673,7 +683,6 @@ function crearColumna(titulo, partidos, fase) {
                     p.s1=s1; p.s2=s2;
                     p.ganador = s1>s2 ? p.t1 : p.t2;
                     
-                    // Avanzar la lógica local antes de enviar
                     avanzarBracketLogicaInterna(fase, i, p.ganador);
                     if (fase === 'fn') {
                         channel.publish('reproducir_sonido', { tipo: 'champions' });
@@ -718,6 +727,7 @@ function avanzarBracketLogicaInterna(fase, idx, ganador) {
 // MODAL RESULTADO GENÉRICO
 // ----------------------------------------------------------------
 function abrirModalResultado(eq1, eq2, s1prev, s2prev, onConfirm) {
+    if(!modalCard) return;
     modalCard.innerHTML = `
         <h2 style="font-family:'BertholdBlock'; text-align:center; color:var(--omen-cyan); margin-bottom:20px; font-size:1.3rem; letter-spacing:3px">RESULTADO</h2>
         <div class="modal-score-row">
@@ -728,12 +738,12 @@ function abrirModalResultado(eq1, eq2, s1prev, s2prev, onConfirm) {
             <div class="eq-blk"><img src="${eq2.logo}" onerror="this.style.display='none'"><div class="eq-name">${eq2.nombre}</div></div>
         </div>
         <button class="btn-valorant" id="ms-confirm" style="width:100%"><span class="btn-content">CONFIRMAR</span></button>`;
-    modal.classList.add('active');
+    if(modal) modal.classList.add('active');
     modalCard.querySelector('#ms-confirm').onclick = () => {
         const s1 = parseInt(modalCard.querySelector('#ms1').value);
         const s2 = parseInt(modalCard.querySelector('#ms2').value);
         if(isNaN(s1)||isNaN(s2)||s1===s2){ alert('Resultado inválido.'); return; }
-        modal.classList.remove('active');
+        if(modal) modal.classList.remove('active');
         onConfirm(s1,s2);
     };
 }
@@ -760,6 +770,7 @@ function mostrarCampeon(nombre, logo) {
 // TABLA FLOTANTE DE CONSULTA RÁPIDA (SOLO ADMIN)
 // ----------------------------------------------------------------
 function mostrarTabla() {
+    if(!tablaCard) return;
     const ranking = getRanking();
     const zonaTag = pos => {
         if(pos<=4)  return '<span class="zona-tag direct">DIRECTO</span>';
@@ -791,11 +802,11 @@ function mostrarTabla() {
             }).join('')}
             </tbody>
         </table>`;
-    tablaModal.classList.add('active');
+    if(tablaModal) tablaModal.classList.add('active');
 }
 
 // ----------------------------------------------------------------
-// UTILS ESTADÍSTICAS (MIGRADAS DIRECTAMENTE)
+// UTILS ESTADÍSTICAS
 // ----------------------------------------------------------------
 function clave(a,b) { return [a,b].sort().join('|'); }
 function getPartidosEquipo(nombre) { return estadoApp.calendario.filter(p => p.t1 === nombre || p.t2 === nombre); }
