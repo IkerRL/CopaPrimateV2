@@ -105,8 +105,31 @@ if (isSpectator) {
 // ----------------------------------------------------------------
 // SINCRONIZACIÓN EN TIEMPO REAL - ENVÍOS (BROADCAST)
 // ----------------------------------------------------------------
+function guardarEstadoLocal() {
+    try {
+        localStorage.setItem('copa_primate_estado_' + roomId, JSON.stringify(estadoApp));
+    } catch(e) {
+        console.warn('No se pudo guardar en localStorage:', e);
+    }
+}
+
+function cargarEstadoLocal() {
+    try {
+        const guardado = localStorage.getItem('copa_primate_estado_' + roomId);
+        if (guardado) {
+            estadoApp = JSON.parse(guardado);
+            console.log('Estado restaurado desde localStorage ✓');
+            return true;
+        }
+    } catch(e) {
+        console.warn('No se pudo cargar localStorage:', e);
+    }
+    return false;
+}
+
 function enviarEstado() {
     if (isSpectator) return;
+    guardarEstadoLocal();
     channel.publish('cambio_estado', estadoApp);
 }
 
@@ -136,6 +159,14 @@ channel.subscribe('reproducir_sonido', (message) => {
 
 // Forzar petición de estado al entrar si somos espectadores
 channel.presence.enter();
+
+// El admin reenvía estado cada vez que alguien nuevo entra al canal
+channel.presence.subscribe('enter', () => {
+    if (!isSpectator) {
+        setTimeout(() => enviarEstado(), 500);
+    }
+});
+
 channel.subscribe('pedir_estado', () => {
     if (!isSpectator) enviarEstado();
 });
@@ -891,10 +922,15 @@ function distribuirEnJornadas(partidos) {
 ably.connection.on('connected', () => {
     console.log('Ably conectado ✓');
     if (isSpectator) {
-        // Pedimos el estado al admin y esperamos su respuesta
+        // El espectador pide el estado al admin
         channel.publish('pedir_estado', {});
     } else {
-        // El admin renderiza su estado local directamente
+        // El admin intenta restaurar su estado guardado
+        const restaurado = cargarEstadoLocal();
+        if (restaurado) {
+            // Tenemos estado guardado, lo publicamos para que los espectadores se sincronicen
+            channel.publish('cambio_estado', estadoApp);
+        }
         procesarCambioEstado();
     }
 });
