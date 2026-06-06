@@ -139,9 +139,6 @@ channel.presence.enter();
 channel.subscribe('pedir_estado', () => {
     if (!isSpectator) enviarEstado();
 });
-if (isSpectator) {
-    channel.publish('pedir_estado', {});
-}
 
 // ----------------------------------------------------------------
 // MÁQUINA DE ESTADOS VISUAL
@@ -890,5 +887,14 @@ function distribuirEnJornadas(partidos) {
     return J;
 }
 
-// Carga visual por defecto al inicializar
-procesarCambioEstado();
+// Carga visual cuando Ably esté conectado
+ably.connection.on('connected', () => {
+    console.log('Ably conectado ✓');
+    if (isSpectator) {
+        // Pedimos el estado al admin y esperamos su respuesta
+        channel.publish('pedir_estado', {});
+    } else {
+        // El admin renderiza su estado local directamente
+        procesarCambioEstado();
+    }
+});
