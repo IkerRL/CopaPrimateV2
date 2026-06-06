@@ -1,39 +1,11 @@
 // ================================================================
-// COPA PRIMATE VOL. II - REALTIME WITH ABLY
+// COPA PRIMATE VOL. II
+// 16 equipos · 4 grupos de 4 · Liga cruzada (4 partidos c/u)
+// Top 4 directo · 5º-12º playoff · 13º-16º eliminados
+// Bracket: Cuartos → Semis → Final
 // ================================================================
 
-// !!! CONFIGURACIÓN DE ABLY !!!
-// Pega aquí tu clave Root real de Ably
-const ABLY_API_KEY = 'ngPWJA.-sqsQQ:zUVSXMBliVDlh2zkgBvKFF2JEPi4dCOlAQRzMX_md4E';
-
-// --- LÓGICA DE MULTISALA (ROOMS) Y ROLES ---
-const urlParams = new URLSearchParams(window.location.search);
-let roomId = urlParams.get('room');
-
-// Si no hay sala, generamos una aleatoria y recargamos
-if (!roomId) {
-    roomId = 'primate_' + Math.random().toString(36).substring(2, 7);
-    urlParams.set('room', roomId);
-    
-    // TRUCO PARA EVITAR QUE FALLE EN LOCAL (file://) O VERCEL:
-    try {
-        window.history.replaceState({}, '', `${window.location.pathname}?${urlParams.toString()}`);
-    } catch (e) {
-        console.warn("Aviso: Trabajando en modo archivo local. Sala asignada: " + roomId);
-    }
-}
-
-// Comprobar si es un overlay/espectador
-const isSpectator = false; // Todos son admin
-
-// Inicializar conexión con Ably
-const ably = new Ably.Realtime({
-    key: ABLY_API_KEY,
-    clientId: (isSpectator ? 'spectator_' : 'admin_') + Math.random().toString(36).substring(2, 9)
-});
-const channel = ably.channels.get(`copa_primate_${roomId}`);
-
-// --- EQUIPOS Y GRUPOS ---
+// --- EQUIPOS Y GRUPOS (edita aquí) ---
 const GRUPOS = {
     A: [
         { nombre: "Rose Devil",      jugadores: ["Tony","Jokker","TBD"],             logo: "logo1.png"  },
@@ -61,25 +33,23 @@ const GRUPOS = {
     ]
 };
 
-const equipos = Object.entries(GRUPOS).flatMap(([g, lista]) => lista.map(e => ({ ...e, grupo: g })));
-const getEq = nombre => equipos.find(e => e.nombre === nombre);
+// Lista plana de equipos
+const equipos = Object.entries(GRUPOS).flatMap(([g, lista]) =>
+    lista.map(e => ({ ...e, grupo: g }))
+);
+
+const getEq  = nombre => equipos.find(e => e.nombre === nombre);
 const letras = ['A','B','C','D'];
 
-// Variables de Estado de la app
-let estadoApp = {
-    faseActual: 'inicial', // inicial, liga, playoffs, bracket
-    jornadas: [[], [], [], []],
-    calendario: [],
-    resultados: {},
-    playoffsData: [],
-    bracketData: null,
-    idx_sorteo: 0,
-    sorteoCompletado: false,
-    idx_revelado: 0  // cuántos equipos se han revelado
-};
+// Calendario por jornadas
+let jornadas = [[], [], [], []]; // jornadas[0..3] = array de { t1, t2 }
+let calendario = [];             // lista plana de todos los partidos
+let resultados = {};             // clave(t1,t2) -> { s1, s2 }
+let playoffsData = [];
+let bracketData  = null;
 
 // ----------------------------------------------------------------
-// DOM ELEMENTS
+// DOM
 // ----------------------------------------------------------------
 const container     = document.getElementById('container-equipos');
 const modal         = document.getElementById('teamModal');
@@ -94,143 +64,20 @@ const sorteoOverlay = document.getElementById('sorteo-overlay');
 const audioMono     = document.getElementById('audioMono');
 const audioChamp    = document.getElementById('audioChampions');
 
-// Ocultar controles si es espectador de forma agresiva
-if (isSpectator) {
-    const footer = document.getElementById('footer-controls');
-    if(footer) footer.style.display = 'none';
-} else {
-    if(modal) modal.addEventListener('click', e => { if(e.target===modal) modal.classList.remove('active'); });
-    if(tablaModal) tablaModal.addEventListener('click', e => { if(e.target===tablaModal) tablaModal.classList.remove('active'); });
-    document.querySelectorAll('.btn-sonido').forEach(m => m.addEventListener('click', () => { 
-        publicarSonido();
-        if (estadoApp.faseActual === 'inicial' && estadoApp.idx_revelado < equipos.length) {
-            estadoApp.idx_revelado++;
-            procesarCambioEstado();
-            enviarEstado();
-        }
-    }));
-}
-
-// ----------------------------------------------------------------
-// SINCRONIZACIÓN EN TIEMPO REAL - ENVÍOS (BROADCAST)
-// ----------------------------------------------------------------
-function guardarEstadoLocal() {
-    try {
-        localStorage.setItem('copa_primate_estado_' + roomId, JSON.stringify(estadoApp));
-    } catch(e) {
-        console.warn('No se pudo guardar en localStorage:', e);
-    }
-}
-
-function cargarEstadoLocal() {
-    try {
-        const guardado = localStorage.getItem('copa_primate_estado_' + roomId);
-        if (guardado) {
-            estadoApp = JSON.parse(guardado);
-            console.log('Estado restaurado desde localStorage ✓');
-            return true;
-        }
-    } catch(e) {
-        console.warn('No se pudo cargar localStorage:', e);
-    }
-    return false;
-}
-
-function enviarEstado() {
-    guardarEstadoLocal();
-    channel.publish('cambio_estado', estadoApp)
-        .catch(e => console.error('Error publicando estado:', e));
-}
-
-function publicarSonido() {
-    channel.publish('reproducir_sonido', { tipo: 'mono' });
-}
-
-// ----------------------------------------------------------------
-// RECEPCIÓN DE DATOS EN TIEMPO REAL (SUBSCRIBE)
-// ----------------------------------------------------------------
-channel.subscribe((message) => {
-    if (message.name === 'cambio_estado') {
-        estadoApp = message.data;
-        guardarEstadoLocal();
-        procesarCambioEstado();
-    }
-    if (message.name === 'reproducir_sonido') {
-        if (message.data.tipo === 'mono' && audioMono) {
-            audioMono.currentTime = 0;
-            audioMono.play().catch(e => console.log("Interacción requerida para audio"));
-        }
-        if (message.data.tipo === 'champions' && audioChamp) {
-            audioChamp.currentTime = 0;
-            audioChamp.play().catch(e => console.log("Interacción requerida para audio"));
-        }
-    }
-});
-
-// ----------------------------------------------------------------
-// MÁQUINA DE ESTADOS VISUAL
-// ----------------------------------------------------------------
-function procesarCambioEstado() {
-    // Cerrar overlays innecesarios dinámicamente si cambió de fase
-    if (estadoApp.faseActual !== 'inicial' && sorteoOverlay) {
-        sorteoOverlay.classList.remove('active');
-    }
-
-    // Gestionar botones del administrador dinámicamente
-    if (!isSpectator) {
-        if(btnSorteo) btnSorteo.style.display = estadoApp.faseActual === 'inicial' ? 'inline-block' : 'none';
-        if(btnLiga) btnLiga.style.display = (estadoApp.faseActual === 'inicial' && estadoApp.sorteoCompletado) ? 'inline-block' : 'none';
-        if(btnPlayoffs) btnPlayoffs.style.display = estadoApp.faseActual === 'liga' ? 'inline-block' : 'none';
-        if(btnBracket) btnBracket.style.display = estadoApp.faseActual === 'playoffs' ? 'inline-block' : 'none';
-        
-        let tf = document.getElementById('btn-tabla-flotante');
-        if (estadoApp.sorteoCompletado && estadoApp.faseActual === 'inicial') {
-            if(!tf) {
-                tf = document.createElement('button');
-                tf.id = 'btn-tabla-flotante';
-                tf.className = 'btn-valorant btn-gold';
-                tf.innerHTML = '<span class="btn-content">📊 TABLA</span>';
-                document.body.appendChild(tf);
-                tf.addEventListener('click', mostrarTabla);
-            }
-            tf.style.display = 'block';
-        } else if (tf) {
-            tf.style.display = 'none';
-        }
-    }
-
-    // Dibujar pantalla correcta según estado
-    switch (estadoApp.faseActual) {
-        case 'inicial':
-            renderInicial();
-            if (estadoApp.idx_sorteo > 0) {
-                if(sorteoOverlay) sorteoOverlay.classList.add('active');
-                reconstruirPantallaSorteo();
-            }
-            break;
-        case 'liga':
-            actualizarVistaLiga();
-            break;
-        case 'playoffs':
-            actualizarVistaPlayoffs();
-            break;
-        case 'bracket':
-            actualizarVistaBracket();
-            break;
-    }
-}
+// Cerrar modales
+modal.addEventListener('click', e => { if(e.target===modal) modal.classList.remove('active'); });
+tablaModal.addEventListener('click', e => { if(e.target===tablaModal) tablaModal.classList.remove('active'); });
+document.querySelectorAll('.btn-sonido').forEach(m => m.addEventListener('click', () => { if(audioMono){audioMono.currentTime=0; audioMono.play();} }));
 
 // ----------------------------------------------------------------
 // RENDER INICIAL
 // ----------------------------------------------------------------
 function renderInicial() {
-    if(!container) return;
     container.innerHTML = '';
     container.style.cssText = '';
-    equipos.forEach((eq, i) => {
+    equipos.forEach(eq => {
         const card = document.createElement('div');
-        const revelado = i < (estadoApp.idx_revelado || 0);
-        card.className = 'card-equipo' + (revelado ? ' revealed' : '');
+        card.className = 'card-equipo';
         card.innerHTML = `
             <div class="smoke-cover"></div>
             <div class="grupo-badge ${eq.grupo}">GRUPO ${eq.grupo}</div>
@@ -241,81 +88,32 @@ function renderInicial() {
                     <div class="jugadores-row">${eq.jugadores.map(j=>`<span>👤 ${j}</span>`).join('')}</div>
                 </div>
             </div>`;
+        card.addEventListener('click', () => card.classList.add('revealed'));
         container.appendChild(card);
     });
 }
+renderInicial();
 
 // ----------------------------------------------------------------
-// ACCIONES DEL ADMINISTRADOR (BOTONES CLICK)
+// SORTEO DE JORNADAS
 // ----------------------------------------------------------------
-if (!isSpectator) {
-    if(btnSorteo) btnSorteo.addEventListener('click', () => {
-        console.log('BTN: Sorteo');
-        estadoApp.faseActual = 'inicial';
-        prepararSorteo();
-        procesarCambioEstado();
-        enviarEstado();
-    });
+let idx_sorteo = 0;
+let total_sorteo = 0;
+let sorteo_animando = false;
+let partidos_generados = []; // todos los partidos ordenados por jornada
 
-    if(btnLiga) btnLiga.addEventListener('click', () => {
-        console.log('BTN: Liga');
-        estadoApp.faseActual = 'liga';
-        procesarCambioEstado();
-        enviarEstado();
-    });
+btnSorteo.addEventListener('click', () => {
+    sorteoOverlay.classList.add('active');
+    prepararSorteo();
+});
 
-    if(btnPlayoffs) btnPlayoffs.addEventListener('click', () => {
-        console.log('BTN: Playoffs');
-        estadoApp.faseActual = 'playoffs';
-        generarEstructuraPlayoffs();
-        procesarCambioEstado();
-        enviarEstado();
-    });
-
-    if(btnBracket) btnBracket.addEventListener('click', () => {
-        console.log('BTN: Bracket');
-        estadoApp.faseActual = 'bracket';
-        generarEstructuraBracket();
-        procesarCambioEstado();
-        enviarEstado();
-    });
-
-    const btnCerrarSorteo = document.getElementById('btn-cerrar-sorteo');
-    if(btnCerrarSorteo) btnCerrarSorteo.addEventListener('click', () => {
-        console.log('BTN: Cerrar sorteo');
-        estadoApp.sorteoCompletado = true;
-        if(sorteoOverlay) sorteoOverlay.classList.remove('active');
-        procesarCambioEstado();
-        enviarEstado();
-    });
-}
-
-// ----------------------------------------------------------------
-// CONTROL DEL SORTEO
-// ----------------------------------------------------------------
 function prepararSorteo() {
-    estadoApp.idx_sorteo = 0;
-    estadoApp.sorteoCompletado = false;
-    
-    let jornadasGeneradas = generarJornadas();
-    estadoApp.jornadas = jornadasGeneradas;
-    estadoApp.calendario = jornadasGeneradas.flat();
-    
-    estadoApp.resultados = {};
-    estadoApp.calendario.forEach(p => {
-        estadoApp.resultados[clave(p.t1, p.t2)] = { s1: '', s2: '' };
-    });
-
-    reconstruirPantallaSorteo();
-}
-
-function reconstruirPantallaSorteo() {
     const display = document.getElementById('sorteo-grupos-display');
-    if(!display) return;
     display.innerHTML = '';
     letras.forEach(g => {
         const col = document.createElement('div');
         col.className = `sg-col ${g}`;
+        col.id = `sg-col-${g}`;
         col.innerHTML = `<div class="sg-col-title">GRUPO ${g}</div>`;
         GRUPOS[g].forEach(eq => {
             const chip = document.createElement('div');
@@ -328,93 +126,203 @@ function reconstruirPantallaSorteo() {
     });
 
     for(let j=0;j<4;j++){
-        const sj = document.getElementById(`sj-${j}`);
-        if(sj) sj.innerHTML = `<div class="sj-title">JORNADA ${j+1}</div>`;
+        const col = document.getElementById(`sj-${j}`);
+        col.innerHTML = `<div class="sj-title">JORNADA ${j+1}</div>`;
     }
 
-    for(let i=0; i<estadoApp.idx_sorteo; i++) {
-        let jActual = 0;
-        let totalJ0 = estadoApp.jornadas[0].length;
-        let totalJ1 = totalJ0 + estadoApp.jornadas[1].length;
-        let totalJ2 = totalJ1 + estadoApp.jornadas[2].length;
-        
-        if(i < totalJ0) jActual = 0;
-        else if(i < totalJ1) jActual = 1;
-        else if(i < totalJ2) jActual = 2;
-        else jActual = 3;
+    document.getElementById('sorteo-info').textContent = 'Pulsa el balón para sortear';
+    document.getElementById('sorteo-match-reveal').textContent = '';
+    document.getElementById('btn-cerrar-sorteo').style.display = 'none';
 
-        const match = estadoApp.calendario[i];
-        const eq1 = getEq(match.t1);
-        const eq2 = getEq(match.t2);
-        
-        const sjCol = document.getElementById(`sj-${jActual}`);
-        if(!sjCol) continue;
-        const chip = document.createElement('div');
-        chip.className = 'sj-match visible';
-        chip.innerHTML = `
-            <img src="${eq1.logo}" onerror="this.style.display='none'">
-            <span>${match.t1}</span><span class="sj-vs">VS</span><span>${match.t2}</span>
-            <img src="${eq2.logo}" onerror="this.style.display='none'">`;
-        sjCol.appendChild(chip);
-    }
+    jornadas = generarJornadas();
+    partidos_generados = jornadas.flat();
+    calendario = [...partidos_generados];
+    partidos_generados.forEach(p => {
+        resultados[clave(p.t1,p.t2)] = { s1:'', s2:'' };
+    });
+
+    idx_sorteo = 0;
+    total_sorteo = partidos_generados.length;
 
     const ball = document.getElementById('sorteo-ball');
+    ball.textContent = '▶';
+    ball.style.cursor = 'pointer';
+    ball.onclick = () => sortearSiguiente(ball);
+}
+
+function generarJornadas() {
+    const todos = [];
+    const vistos = new Set();
+    const add = (a,b) => {
+        const k = [a,b].sort().join('|');
+        if(!vistos.has(k)){ vistos.add(k); todos.push({t1:a,t2:b}); }
+    };
+
+    letras.forEach(g => {
+        const arr = shuffle([...GRUPOS[g].map(e=>e.nombre)]);
+        add(arr[0],arr[1]);
+        add(arr[2],arr[3]);
+    });
+
+    const pares = [['A','B'],['A','C'],['A','D'],['B','C'],['B','D'],['C','D']];
+    pares.forEach(([g1,g2]) => {
+        const a1 = shuffle([...GRUPOS[g1].map(e=>e.nombre)]);
+        const a2 = shuffle([...GRUPOS[g2].map(e=>e.nombre)]);
+        a1.forEach((t,i) => add(t, a2[i]));
+    });
+
+    return distribuirEnJornadas(shuffle(todos));
+}
+
+function distribuirEnJornadas(partidos) {
+    const J = [[],[],[],[]];
+    const usadoPorJornada = [{},{},{},{}];
+
+    const puedeIr = (p, j) => !usadoPorJornada[j][p.t1] && !usadoPorJornada[j][p.t2];
+
+    const marcar = (p, j) => {
+        usadoPorJornada[j][p.t1] = true;
+        usadoPorJornada[j][p.t2] = true;
+        J[j].push(p);
+    };
+
+    const colocar = (idx) => {
+        if(idx === partidos.length) return true;
+        const p = partidos[idx];
+        for(let j=0; j<4; j++){
+            if(J[j].length < 8 && puedeIr(p,j)){
+                marcar(p,j);
+                if(colocar(idx+1)) return true;
+                J[j].pop();
+                delete usadoPorJornada[j][p.t1];
+                delete usadoPorJornada[j][p.t2];
+            }
+        }
+        return false;
+    };
+
+    let intentos = 0;
+    while(!colocar(0) && intentos < 20){
+        J.forEach(j=>j.length=0);
+        usadoPorJornada.forEach(u=>{ for(const k in u) delete u[k]; });
+        shuffle(partidos);
+        intentos++;
+    }
+    return J;
+}
+
+function sortearSiguiente(ball) {
+    if(sorteo_animando) return;
+    if(idx_sorteo >= total_sorteo) return;
+
+    sorteo_animando = true;
+
+    let acumulado = 0;
+    let jornada_actual = 0;
+    let idx_en_jornada = idx_sorteo;
+    for(let j=0; j<4; j++){
+        if(idx_sorteo < acumulado + jornadas[j].length){
+            jornada_actual = j;
+            idx_en_jornada = idx_sorteo - acumulado;
+            break;
+        }
+        acumulado += jornadas[j].length;
+    }
+
+    const match = jornadas[jornada_actual][idx_en_jornada];
+    const eq1 = getEq(match.t1);
+    const eq2 = getEq(match.t2);
     const infoEl = document.getElementById('sorteo-info');
     const revealEl = document.getElementById('sorteo-match-reveal');
 
-    if(ball && infoEl && revealEl) {
-        if (estadoApp.idx_sorteo >= estadoApp.calendario.length) {
+    document.querySelectorAll('.sg-team').forEach(el => el.classList.remove('highlighted'));
+    document.getElementById(`sg-team-${match.t1.replace(/\s/g,'_')}`)?.classList.add('highlighted');
+    document.getElementById(`sg-team-${match.t2.replace(/\s/g,'_')}`)?.classList.add('highlighted');
+
+    ball.classList.add('spinning');
+    ball.textContent = '...';
+    infoEl.textContent = `JORNADA ${jornada_actual+1} · PARTIDO ${idx_en_jornada+1}/8`;
+    revealEl.textContent = '';
+    try{ audioMono.currentTime=0; audioMono.play(); } catch(e){}
+
+    setTimeout(() => {
+        ball.classList.remove('spinning');
+        ball.textContent = `J${jornada_actual+1}`;
+        revealEl.textContent = `${match.t1} ⚡ ${match.t2}`;
+
+        const sjCol = document.getElementById(`sj-${jornada_actual}`);
+        const chip = document.createElement('div');
+        chip.className = 'sj-match';
+        chip.innerHTML = `
+            <img src="${eq1.logo}" onerror="this.style.display='none'">
+            <span>${match.t1}</span>
+            <span class="sj-vs">VS</span>
+            <span>${match.t2}</span>
+            <img src="${eq2.logo}" onerror="this.style.display='none'">`;
+        sjCol.appendChild(chip);
+        setTimeout(()=>chip.classList.add('visible'), 40);
+        sjCol.scrollTop = sjCol.scrollHeight;
+
+        idx_sorteo++;
+        sorteo_animando = false;
+
+        if(idx_sorteo >= total_sorteo){
             ball.textContent = '✓';
             ball.style.cursor = 'default';
             ball.onclick = null;
             infoEl.textContent = '¡SORTEO COMPLETADO! 32 PARTIDOS';
             revealEl.textContent = '';
-            const btnCerrar = document.getElementById('btn-cerrar-sorteo');
-            if (!isSpectator && btnCerrar) btnCerrar.style.display = 'block';
+            document.getElementById('btn-cerrar-sorteo').style.display = 'block';
         } else {
-            ball.textContent = '▶';
-            if (isSpectator) {
-                ball.style.cursor = 'default';
-                infoEl.textContent = 'Esperando sorteo del Administrador...';
-            } else {
-                ball.style.cursor = 'pointer';
-                ball.onclick = () => ejecutarGiroSorteoLocal();
-                infoEl.textContent = 'Pulsa el balón para sortear';
-            }
+            setTimeout(()=>{ ball.textContent='▶'; }, 500);
         }
-    }
-}
-
-let local_animando_sorteo = false;
-function ejecutarGiroSorteoLocal() {
-    if (local_animando_sorteo || isSpectator) return;
-    local_animando_sorteo = true;
-
-    channel.publish('reproducir_sonido', { tipo: 'mono' });
-
-    const ball = document.getElementById('sorteo-ball');
-    if(ball) ball.classList.add('spinning');
-    
-    setTimeout(() => {
-        if(ball) ball.classList.remove('spinning');
-        estadoApp.idx_sorteo++;
-        local_animando_sorteo = false;
-        enviarEstado();
     }, 800);
 }
 
+document.getElementById('btn-cerrar-sorteo').addEventListener('click', () => {
+    sorteoOverlay.classList.remove('active');
+    btnSorteo.style.display = 'none';
+    btnLiga.style.display = 'inline-block';
+
+    let tf = document.getElementById('btn-tabla-flotante');
+    if(!tf){
+        tf = document.createElement('button');
+        tf.id = 'btn-tabla-flotante';
+        tf.className = 'btn-valorant btn-gold';
+        tf.innerHTML = '<span class="btn-content">📊 TABLA</span>';
+        document.body.appendChild(tf);
+        tf.addEventListener('click', mostrarTabla);
+    }
+    tf.style.display = 'block';
+});
+
 // ----------------------------------------------------------------
-// LIGA BINDINGS
+// CLAVE DE PARTIDO
 // ----------------------------------------------------------------
-function actualizarVistaLiga() {
-    if(!container) return;
+function clave(a,b) { return [a,b].sort().join('|'); }
+
+// ----------------------------------------------------------------
+// FASE DE LIGA — VISTA POR JORNADAS
+// ----------------------------------------------------------------
+btnLiga.addEventListener('click', () => {
+    mostrarLiga();
+    btnLiga.style.display = 'none';
+    btnPlayoffs.style.display = 'inline-block';
+});
+
+function mostrarLiga() {
     container.innerHTML = '';
+    
+    const tf = document.getElementById('btn-tabla-flotante');
+    if (tf) tf.style.display = 'none';
+
     const splitContainer = document.createElement('div');
     splitContainer.className = 'liga-split-container';
 
-    // Clasificación Izquierda
+    // === COLUMNA IZQUIERDA: CLASIFICACIÓN ===
     const tablaCol = document.createElement('div');
     tablaCol.className = 'liga-tabla-col';
+    
     const ranking = getRanking();
     const trClass = pos => pos <= 4 ? 'tr-direct' : pos <= 12 ? 'tr-playoff' : 'tr-elim';
 
@@ -422,7 +330,9 @@ function actualizarVistaLiga() {
         <div class="contenedor-tabla-directa">
             <h2 class="titulo-seccion-liga">📊 CLASIFICACIÓN</h2>
             <table class="tabla-general">
-                <thead><tr><th>#</th><th>EQUIPO</th><th>PJ</th><th>V</th><th>PTS</th><th>DIF</th></tr></thead>
+                <thead><tr>
+                    <th>#</th><th>EQUIPO</th><th>PJ</th><th>V</th><th>PTS</th><th>DIF</th>
+                </tr></thead>
                 <tbody>
                 ${ranking.map((r, i) => {
                     const pos = i + 1;
@@ -443,36 +353,48 @@ function actualizarVistaLiga() {
         </div>`;
     splitContainer.appendChild(tablaCol);
 
-    // Enfrentamientos Derecha
+    // === COLUMNA DERECHA: ACORDEONES ===
     const jornadasCol = document.createElement('div');
     jornadasCol.className = 'liga-jornadas-col';
     
     const tituloJornadas = document.createElement('h2');
     tituloJornadas.className = 'titulo-seccion-liga';
-    tituloJornadas.innerHTML = `📅 ENFRENTAMIENTOS ${isSpectator ? '' : '<small style="font-size:0.55rem; color:rgba(255,255,255,0.4); display:block; margin-top:4px; letter-spacing:1px;">DOBLE CLIC PARA EDITAR</small>'}`;
+    tituloJornadas.innerHTML = '📅 ENFRENTAMIENTOS <small style="font-size:0.55rem; color:rgba(255,255,255,0.4); display:block; margin-top:4px; letter-spacing:1px;">DOBLE CLIC PARA EDITAR MARCADORES</small>';
     jornadasCol.appendChild(tituloJornadas);
 
-    estadoApp.jornadas.forEach((partidos, ji) => {
+    jornadas.forEach((partidos, ji) => {
         const accItem = document.createElement('div');
-        accItem.className = 'accordion-jornada active';
+        accItem.className = 'accordion-jornada';
+        if(ji === 0) accItem.classList.add('active'); // Dejar la primera jornada abierta por defecto
 
         accItem.innerHTML = `
             <div class="accordion-header">
-                <div class="folder-title"><span class="folder-icon">📁</span><span>JORNADA ${ji + 1}</span></div>
+                <div class="folder-title">
+                    <span class="folder-icon">📁</span>
+                    <span>JORNADA ${ji + 1}</span>
+                </div>
+                <span class="arrow-icon">▼</span>
             </div>
             <div class="accordion-content">
                 <div class="lista-jornada" id="lista-j${ji}"></div>
             </div>`;
 
-        if (!isSpectator) {
-            accItem.querySelector('.accordion-header').addEventListener('dblclick', (e) => {
-                e.stopPropagation();
-                abrirPartidosJornada(ji);
-            });
-        }
+        const header = accItem.querySelector('.accordion-header');
+        
+        header.addEventListener('click', (e) => {
+            const isOpen = accItem.classList.contains('active');
+            jornadasCol.querySelectorAll('.accordion-jornada').forEach(item => item.classList.remove('active'));
+            if (!isOpen) accItem.classList.add('active');
+        });
+
+        header.addEventListener('dblclick', (e) => {
+            e.stopPropagation();
+            abrirPartidosJornada(ji);
+        });
 
         const lista = accItem.querySelector(`#lista-j${ji}`);
         partidos.forEach(p => lista.appendChild(crearCardPartido(p, ji)));
+
         jornadasCol.appendChild(accItem);
     });
 
@@ -480,10 +402,11 @@ function actualizarVistaLiga() {
     container.appendChild(splitContainer);
 }
 
+// Genera las tarjetas individuales de enfrentamientos
 function crearCardPartido(p, ji) {
     const eq1 = getEq(p.t1);
     const eq2 = getEq(p.t2);
-    const r = estadoApp.resultados[clave(p.t1, p.t2)];
+    const r = resultados[clave(p.t1, p.t2)];
     
     const sorted = [p.t1, p.t2].sort();
     const s1Val = (r && r.s1 !== '') ? ((p.t1 === sorted[0]) ? r.s1 : r.s2) : '—';
@@ -504,22 +427,23 @@ function crearCardPartido(p, ji) {
         <div class="partido-equipo-col back-align">
             <span class="partido-equipo-name">${p.t2}</span>
             <img src="${eq2.logo}" onerror="this.style.display='none'">
-        </div>`;
+        </div>
+    `;
     
-    if (!isSpectator) {
-        card.addEventListener('dblclick', (e) => {
-            e.stopPropagation();
-            abrirModalResultadoPartido(p, ji);
-        });
-    }
+    card.addEventListener('dblclick', (e) => {
+        e.stopPropagation();
+        abrirModalResultadoPartido(p, ji);
+    });
     
     return card;
 }
 
+// Abre ventana emergente para un único partido
 function abrirModalResultadoPartido(p, ji) {
     const eq1 = getEq(p.t1);
     const eq2 = getEq(p.t2);
-    const r = estadoApp.resultados[clave(p.t1, p.t2)];
+    const r = resultados[clave(p.t1, p.t2)];
+    
     const sorted = [p.t1, p.t2].sort();
     const s1prev = (p.t1 === sorted[0]) ? r.s1 : r.s2;
     const s2prev = (p.t1 === sorted[0]) ? r.s2 : r.s1;
@@ -530,19 +454,20 @@ function abrirModalResultadoPartido(p, ji) {
         } else {
             r.s1 = s2; r.s2 = s1;
         }
-        enviarEstado();
+        refreshJornada(ji);
     });
 }
 
+// Abre ventana masiva para editar los 8 partidos de la jornada seleccionada
 function abrirPartidosJornada(ji) {
-    const partidos = estadoApp.jornadas[ji];
-    if(!modalCard) return;
+    const partidos = jornadas[ji];
     modalCard.innerHTML = `
         <h2 style="font-family:'BertholdBlock'; text-align:center; color:var(--omen-cyan); margin-bottom:15px; font-size:1.4rem; letter-spacing:2px">EDITAR JORNADA ${ji + 1}</h2>
-        <div style="max-height: 380px; overflow-y: auto; padding-right: 10px;">
+        <div style="max-height: 380px; overflow-y: auto; padding-right: 10px;" id="modal-lista-partidos-jornada">
             ${partidos.map((p, i) => {
-                const eq1 = getEq(p.t1); const eq2 = getEq(p.t2);
-                const r = estadoApp.resultados[clave(p.t1, p.t2)];
+                const eq1 = getEq(p.t1);
+                const eq2 = getEq(p.t2);
+                const r = resultados[clave(p.t1, p.t2)];
                 const sorted = [p.t1, p.t2].sort();
                 const s1Val = (r && r.s1 !== '') ? ((p.t1 === sorted[0]) ? r.s1 : r.s2) : '';
                 const s2Val = (r && r.s2 !== '') ? ((p.t1 === sorted[0]) ? r.s2 : r.s1) : '';
@@ -550,256 +475,161 @@ function abrirPartidosJornada(ji) {
                     <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:12px; background:rgba(255,255,255,0.03); padding:8px; border-radius:4px; border:1px solid rgba(255,255,255,0.05)">
                         <div style="flex:1; display:flex; align-items:center; gap:6px; font-size:0.85rem; width:130px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
                             <img src="${eq1.logo}" style="width:18px; height:18px; object-fit:contain" onerror="this.style.display='none'">
-                            <span>${p.t1}</span>
+                            <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${p.t1}</span>
                         </div>
-                        <input type="number" class="input-score-jornada" data-idx="${i}" data-team="1" value="${s1Val}" style="width:45px; background:#111; border:1px solid var(--omen-purple); color:#fff; text-align:center; padding:2px;">
+                        <input type="number" class="input-score-jornada" data-idx="${i}" data-team="1" value="${s1Val}" style="width:45px; background:#111; border:1px solid var(--omen-purple); color:#fff; text-align:center; border-radius:3px; padding:2px;" min="0" placeholder="0">
                         <span style="color:var(--omen-purple)">—</span>
-                        <input type="number" class="input-score-jornada" data-idx="${i}" data-team="2" value="${s2Val}" style="width:45px; background:#111; border:1px solid var(--omen-purple); color:#fff; text-align:center; padding:2px;">
-                        <div style="flex:1; display:flex; align-items:center; justify-content:flex-end; gap:6px; font-size:0.85rem; text-align:right;">
-                            <span>${p.t2}</span><img src="${eq2.logo}" style="width:18px; height:18px; object-fit:contain" onerror="this.style.display='none'">
+                        <input type="number" class="input-score-jornada" data-idx="${i}" data-team="2" value="${s2Val}" style="width:45px; background:#111; border:1px solid var(--omen-purple); color:#fff; text-align:center; border-radius:3px; padding:2px;" min="0" placeholder="0">
+                        <div style="flex:1; display:flex; align-items:center; justify-content:flex-end; gap:6px; font-size:0.85rem; width:130px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; text-align:right;">
+                            <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${p.t2}</span>
+                            <img src="${eq2.logo}" style="width:18px; height:18px; object-fit:contain" onerror="this.style.display='none'">
                         </div>
-                    </div>`;
+                    </div>
+                `;
             }).join('')}
         </div>
-        <button class="btn-valorant" id="btn-guardar-jornada" style="width:100%; margin-top:15px;"><span class="btn-content">GUARDAR JORNADA</span></button>`;
-    
-    if(modal) modal.classList.add('active');
+        <button class="btn-valorant" id="btn-guardar-jornada" style="width:100%; margin-top:15px;"><span class="btn-content">GUARDAR JORNADA</span></button>
+    `;
+    modal.classList.add('active');
     
     document.getElementById('btn-guardar-jornada').onclick = () => {
-        let valid = true; const updates = [];
+        let valid = true;
+        const updates = [];
+        
         for (let i = 0; i < partidos.length; i++) {
             const inp1 = modalCard.querySelector(`.input-score-jornada[data-idx="${i}"][data-team="1"]`);
             const inp2 = modalCard.querySelector(`.input-score-jornada[data-idx="${i}"][data-team="2"]`);
+            
             if (inp1.value !== '' || inp2.value !== '') {
-                const s1 = parseInt(inp1.value); const s2 = parseInt(inp2.value);
-                if (isNaN(s1) || isNaN(s2) || s1 === s2) { alert('Marcadores incorrectos detectados.'); valid = false; break; }
+                const s1 = parseInt(inp1.value);
+                const s2 = parseInt(inp2.value);
+                if (isNaN(s1) || isNaN(s2)) {
+                    alert('Introduce ambos marcadores para los partidos editados.');
+                    valid = false; break;
+                }
+                if (s1 === s2) {
+                    alert('No puede haber empates.');
+                    valid = false; break;
+                }
                 updates.push({ idx: i, s1, s2 });
             }
         }
+        
         if (valid) {
             updates.forEach(up => {
-                const p = partidos[up.idx]; const r = estadoApp.resultados[clave(p.t1, p.t2)];
+                const p = partidos[up.idx];
+                const r = resultados[clave(p.t1, p.t2)];
                 const sorted = [p.t1, p.t2].sort();
-                if (p.t1 === sorted[0]) { r.s1 = up.s1; r.s2 = up.s2; } 
-                else { r.s1 = up.s2; r.s2 = up.s1; }
+                if (p.t1 === sorted[0]) {
+                    r.s1 = up.s1; r.s2 = up.s2;
+                } else {
+                    r.s1 = up.s2; r.s2 = up.s1;
+                }
             });
-            if(modal) modal.classList.remove('active');
-            enviarEstado();
+            modal.classList.remove('active');
+            refreshJornada(ji);
         }
     };
 }
 
-// ----------------------------------------------------------------
-// PLAYOFFS BINDINGS
-// ----------------------------------------------------------------
-function generarEstructuraPlayoffs() {
-    const ranking = getRanking();
-    const zona = ranking.slice(4,12);
-    estadoApp.playoffsData = [
-        { t1:zona[0]?.eq||{nombre:'TBD',logo:''}, t2:zona[7]?.eq||{nombre:'TBD',logo:''}, seed1:5,  seed2:12, ganador:null, s1:'', s2:'' },
-        { t1:zona[1]?.eq||{nombre:'TBD',logo:''}, t2:zona[6]?.eq||{nombre:'TBD',logo:''}, seed1:6,  seed2:11, ganador:null, s1:'', s2:'' },
-        { t1:zona[2]?.eq||{nombre:'TBD',logo:''}, t2:zona[5]?.eq||{nombre:'TBD',logo:''}, seed1:7,  seed2:10, ganador:null, s1:'', s2:'' },
-        { t1:zona[3]?.eq||{nombre:'TBD',logo:''}, t2:zona[4]?.eq||{nombre:'TBD',logo:''}, seed1:8,  seed2:9,  ganador:null, s1:'', s2:'' },
-    ];
-}
-
-function actualizarVistaPlayoffs() {
-    if(!container) return;
-    container.innerHTML = '';
-    const wrapper = document.createElement('div');
-    wrapper.className = 'playoffs-wrapper';
-    wrapper.innerHTML = `
-        <h2 class="playoffs-title">FASE PLAYOFF</h2>
-        <p class="playoffs-subtitle">${isSpectator ? 'EN DIRECTO' : 'DOBLE CLIC PARA INTRODUCIR RESULTADO'}</p>
-        <div class="playoffs-grid" id="playoffs-grid"></div>`;
-
-    const grid = wrapper.querySelector('#playoffs-grid');
-    estadoApp.playoffsData.forEach((pd, i) => {
-        const el = document.createElement('div');
-        el.className = 'playoff-match' + (pd.ganador ? ' done' : '');
-        renderPlayoffMatch(el, pd);
-        
-        if (!isSpectator && pd.t1.nombre !== 'TBD' && pd.t2.nombre !== 'TBD') {
-            el.ondblclick = () => abrirModalResultado(pd.t1, pd.t2, pd.s1, pd.s2, (s1, s2) => {
-                pd.s1 = s1; pd.s2 = s2;
-                pd.ganador = s1 > s2 ? pd.t1 : pd.t2;
-                enviarEstado();
-            });
-        }
-        grid.appendChild(el);
-    });
-    container.appendChild(wrapper);
-}
-
-function renderPlayoffMatch(el, pd) {
-    const gNom = pd.ganador?.nombre;
-    const t1L = gNom && gNom!==pd.t1.nombre;
-    const t2L = gNom && gNom!==pd.t2.nombre;
-    el.innerHTML = `
-        <div class="playoff-team ${t1L?'loser':''}">
-            <div><span class="playoff-seed">#${pd.seed1}</span><img src="${pd.t1.logo}" onerror="this.style.display='none'"></div>
-            <span>${pd.t1.nombre}</span>
-        </div>
-        <div class="playoff-vs">VS</div>
-        <div class="playoff-team ${t2L?'loser':''}" style="flex-direction:row-reverse;text-align:right">
-            <div><span class="playoff-seed">#${pd.seed2}</span><img src="${pd.t2.logo}" onerror="this.style.display='none'"></div>
-            <span>${pd.t2.nombre}</span>
-        </div>
-        <div class="playoff-done-badge">${pd.ganador?'✓':'—'}</div>`;
-}
-
-// ----------------------------------------------------------------
-// BRACKET FINAL BINDINGS
-// ----------------------------------------------------------------
-function generarEstructuraBracket() {
-    const ranking = getRanking();
-    const top4 = ranking.slice(0,4).map(r=>r.eq);
-    const gpWinners = estadoApp.playoffsData.map(pd => pd.ganador || { nombre:'TBD', logo:'' });
-
-    estadoApp.bracketData = {
-        qf: [
-            { id:'qf0', t1:top4[0]||{nombre:'TBD',logo:''}, t2:gpWinners[3]||{nombre:'TBD',logo:''}, s1:'', s2:'', ganador:null },
-            { id:'qf1', t1:top4[1]||{nombre:'TBD',logo:''}, t2:gpWinners[2]||{nombre:'TBD',logo:''}, s1:'', s2:'', ganador:null },
-            { id:'qf2', t1:top4[2]||{nombre:'TBD',logo:''}, t2:gpWinners[1]||{nombre:'TBD',logo:''}, s1:'', s2:'', ganador:null },
-            { id:'qf3', t1:top4[3]||{nombre:'TBD',logo:''}, t2:gpWinners[0]||{nombre:'TBD',logo:''}, s1:'', s2:'', ganador:null },
-        ],
-        sf: [
-            { id:'sf0', t1:{nombre:'TBD',logo:''}, t2:{nombre:'TBD',logo:''}, s1:'', s2:'', ganador:null },
-            { id:'sf1', t1:{nombre:'TBD',logo:''}, t2:{nombre:'TBD',logo:''}, s1:'', s2:'', ganador:null },
-        ],
-        fn: [
-            { id:'fn0', t1:{nombre:'TBD',logo:''}, t2:{nombre:'TBD',logo:''}, s1:'', s2:'', ganador:null },
-        ],
-        campeonAnunciado: false
-    };
-}
-
-function actualizarVistaBracket() {
-    if (!estadoApp.bracketData || !container) return;
-    container.innerHTML = '';
-    const outer = document.createElement('div'); outer.className = 'bracket-outer';
-    const bc = document.createElement('div'); bc.className = 'bracket-container';
-
-    bc.appendChild(crearColumna('CUARTOS DE FINAL', estadoApp.bracketData.qf, 'qf'));
-    bc.appendChild(crearColumna('SEMIFINALES', estadoApp.bracketData.sf, 'sf'));
-    bc.appendChild(crearColumna('⚡ GRAN FINAL', estadoApp.bracketData.fn, 'fn'));
-
-    outer.appendChild(bc); container.appendChild(outer);
-
-    // Revisar si ya hay campeón y mostrar overlay correspondiente
-    const finalMatch = estadoApp.bracketData.fn[0];
-    if (finalMatch.ganador && !document.querySelector('.champion-overlay')) {
-        mostrarCampeon(finalMatch.ganador.nombre, finalMatch.ganador.logo);
+function refreshJornada(ji) {
+    const lista = document.getElementById(`lista-j${ji}`);
+    if (!lista) return;
+    lista.innerHTML = '';
+    jornadas[ji].forEach(p => lista.appendChild(crearCardPartido(p, ji)));
+    
+    const tbody = document.querySelector('.contenedor-tabla-directa tbody');
+    if (tbody) {
+        const ranking = getRanking();
+        const trClass = pos => pos <= 4 ? 'tr-direct' : pos <= 12 ? 'tr-playoff' : 'tr-elim';
+        tbody.innerHTML = ranking.map((r, i) => {
+            const pos = i + 1;
+            return `<tr class="${trClass(pos)}">
+                <td class="pos-num">${pos}</td>
+                <td><div style="display:flex;align-items:center;gap:8px">
+                    <img src="${r.eq.logo}" style="width:20px;height:20px;object-fit:contain" onerror="this.style.display='none'">
+                    <span class="tabla-nom-equipo">${r.eq.nombre}</span>
+                </div></td>
+                <td style="text-align:center">${r.pj}</td>
+                <td style="text-align:center">${r.wins}</td>
+                <td style="text-align:center;font-family:'BertholdBlock'">${r.pts}</td>
+                <td style="text-align:center;color:${r.diff >= 0 ? '#00ff88' : '#ff4655'}">${r.diff > 0 ? '+' : ''}${r.diff}</td>
+            </tr>`;
+        }).join('');
     }
 }
 
-function crearColumna(titulo, partidos, fase) {
-    const col = document.createElement('div'); col.className = 'bracket-column';
-    const tit = document.createElement('div'); tit.className = 'bracket-col-title';
-    tit.textContent = titulo; col.appendChild(tit);
+// ----------------------------------------------------------------
+// FUNCIONES ESTADÍSTICAS MIGRADAS
+// ----------------------------------------------------------------
+function getPartidosEquipo(nombre) {
+    return calendario.filter(p => p.t1 === nombre || p.t2 === nombre);
+}
 
-    partidos.forEach((p, i) => {
-        const box = document.createElement('div');
-        box.className = 'match-box' + (fase==='fn'?' final-box':'');
-        const esTBD = p.t1.nombre==='TBD' || p.t2.nombre==='TBD';
-        if(esTBD) box.classList.add('tbd');
-
-        renderMatchBox(box, p);
-
-        if(!esTBD && !isSpectator) {
-            box.ondblclick = () => {
-                abrirModalResultado(p.t1, p.t2, p.s1, p.s2, (s1,s2) => {
-                    p.s1=s1; p.s2=s2;
-                    p.ganador = s1>s2 ? p.t1 : p.t2;
-                    
-                    avanzarBracketLogicaInterna(fase, i, p.ganador);
-                    if (fase === 'fn') {
-                        channel.publish('reproducir_sonido', { tipo: 'champions' });
-                    }
-                    enviarEstado();
-                });
-            };
+function getWins(nombre) {
+    let wins = 0;
+    calendario.forEach(p => {
+        const r = resultados[clave(p.t1, p.t2)];
+        if (r && r.s1 !== '' && r.s2 !== '') {
+            const sorted = [p.t1, p.t2].sort();
+            const s1 = parseInt(r.s1);
+            const s2 = parseInt(r.s2);
+            if (nombre === sorted[0] && s1 > s2) wins++;
+            if (nombre === sorted[1] && s2 > s1) wins++;
         }
-        col.appendChild(box);
     });
-    return col;
+    return wins;
 }
 
-function renderMatchBox(box, p) {
-    const g = p.ganador?.nombre;
-    const t1L = g && g!==p.t1.nombre;
-    const t2L = g && g!==p.t2.nombre;
-    const img = eq => eq.logo ? `<img src="${eq.logo}" onerror="this.style.display='none'">` : `<div style="width:28px;height:28px;background:#222;border-radius:4px"></div>`;
-    box.innerHTML = `
-        <div class="mtr ${t1L?'loser':''}">
-            ${img(p.t1)}<span class="mtr-name">${p.t1.nombre}</span>${g?`<span class="mtr-score">${p.s1}</span>`:''}
-        </div>
-        <div class="vs-line"></div>
-        <div class="mtr ${t2L?'loser':''}">
-            ${img(p.t2)}<span class="mtr-name">${p.t2.nombre}</span>${g?`<span class="mtr-score">${p.s2}</span>`:''}
-        </div>`;
+function getPuntos(nombre) {
+    let pts = 0;
+    calendario.forEach(p => {
+        const r = resultados[clave(p.t1, p.t2)];
+        if (r && r.s1 !== '' && r.s2 !== '') {
+            const sorted = [p.t1, p.t2].sort();
+            const s1 = parseInt(r.s1);
+            const s2 = parseInt(r.s2);
+            if (nombre === sorted[0] && s1 > s2) pts += 3;
+            if (nombre === sorted[1] && s2 > s1) pts += 3;
+            if (s1 === s2) pts += 1;
+        }
+    });
+    return pts;
 }
 
-function avanzarBracketLogicaInterna(fase, idx, ganador) {
-    let destFase, destIdx, destSlot;
-    if(fase==='qf') {
-        destFase='sf'; destIdx = idx<2 ? 0 : 1; destSlot = idx%2===0 ? 't1' : 't2';
-    } else if(fase==='sf') {
-        destFase='fn'; destIdx=0; destSlot = idx===0 ? 't1' : 't2';
-    } else return;
-
-    const arr = destFase==='sf' ? estadoApp.bracketData.sf : estadoApp.bracketData.fn;
-    arr[destIdx][destSlot] = ganador;
+function getDiff(nombre) {
+    let favor = 0;
+    let contra = 0;
+    calendario.forEach(p => {
+        const r = resultados[clave(p.t1, p.t2)];
+        if (r && r.s1 !== '' && r.s2 !== '') {
+            const sorted = [p.t1, p.t2].sort();
+            const s1 = parseInt(r.s1);
+            const s2 = parseInt(r.s2);
+            if (nombre === sorted[0]) {
+                favor += s1; contra += s2;
+            } else if (nombre === sorted[1]) {
+                favor += s2; contra += s1;
+            }
+        }
+    });
+    return favor - contra;
 }
 
-// ----------------------------------------------------------------
-// MODAL RESULTADO GENÉRICO
-// ----------------------------------------------------------------
-function abrirModalResultado(eq1, eq2, s1prev, s2prev, onConfirm) {
-    if(!modalCard) return;
-    modalCard.innerHTML = `
-        <h2 style="font-family:'BertholdBlock'; text-align:center; color:var(--omen-cyan); margin-bottom:20px; font-size:1.3rem; letter-spacing:3px">RESULTADO</h2>
-        <div class="modal-score-row">
-            <div class="eq-blk"><img src="${eq1.logo}" onerror="this.style.display='none'"><div class="eq-name">${eq1.nombre}</div></div>
-            <input type="number" id="ms1" class="input-score" value="${s1prev}" min="0" placeholder="0">
-            <span style="font-family:'BertholdBlock';font-size:2rem;color:var(--omen-purple)">—</span>
-            <input type="number" id="ms2" class="input-score" value="${s2prev}" min="0" placeholder="0">
-            <div class="eq-blk"><img src="${eq2.logo}" onerror="this.style.display='none'"><div class="eq-name">${eq2.nombre}</div></div>
-        </div>
-        <button class="btn-valorant" id="ms-confirm" style="width:100%"><span class="btn-content">CONFIRMAR</span></button>`;
-    if(modal) modal.classList.add('active');
-    modalCard.querySelector('#ms-confirm').onclick = () => {
-        const s1 = parseInt(modalCard.querySelector('#ms1').value);
-        const s2 = parseInt(modalCard.querySelector('#ms2').value);
-        if(isNaN(s1)||isNaN(s2)||s1===s2){ alert('Resultado inválido.'); return; }
-        if(modal) modal.classList.remove('active');
-        onConfirm(s1,s2);
-    };
+function getRanking() {
+    return equipos.map(eq => ({
+        eq,
+        pts:   getPuntos(eq.nombre),
+        wins:  getWins(eq.nombre),
+        diff:  getDiff(eq.nombre),
+        pj:    getPartidosEquipo(eq.nombre).filter(p=>{
+                   const r=resultados[clave(p.t1,p.t2)];
+                   return r&&r.s1!==''&&r.s2!=='';
+               }).length
+    })).sort((a,b) => b.pts-a.pts || b.wins-a.wins || b.diff-a.diff);
 }
 
-// ----------------------------------------------------------------
-// PANTALLA CAMPEÓN OVERLAY
-// ----------------------------------------------------------------
-function mostrarCampeon(nombre, logo) {
-    const flag = document.querySelector('.champion-overlay');
-    if (flag) flag.remove();
-
-    const ov = document.createElement('div');
-    ov.className = 'champion-overlay';
-    ov.innerHTML = `
-        <h1 class="champion-title">¡CAMPEÓN VOL. II!</h1>
-        <img src="${logo}" class="champion-logo" onerror="this.style.display='none'">
-        <h2 class="champion-name">${nombre}</h2>
-        ${isSpectator ? '' : `<button class="btn-valorant" onclick="location.reload()" style="margin-top:50px"><span class="btn-content">FINALIZAR TORNEO</span></button>`}`;
-    document.body.appendChild(ov);
-    setTimeout(()=>ov.classList.add('active'), 100);
-}
-
-// ----------------------------------------------------------------
-// TABLA FLOTANTE DE CONSULTA RÁPIDA (SOLO ADMIN)
-// ----------------------------------------------------------------
 function mostrarTabla() {
-    if(!tablaCard) return;
     const ranking = getRanking();
     const zonaTag = pos => {
         if(pos<=4)  return '<span class="zona-tag direct">DIRECTO</span>';
@@ -811,7 +641,9 @@ function mostrarTabla() {
     tablaCard.innerHTML = `
         <h2 style="font-family:'BertholdBlock'; text-align:center; color:var(--omen-cyan); margin-bottom:20px; font-size:1.6rem; letter-spacing:4px">TABLA GENERAL</h2>
         <table class="tabla-general">
-            <thead><tr><th>#</th><th>EQUIPO</th><th>GR</th><th>PJ</th><th>V</th><th>PTS</th><th>DIF</th><th>ZONA</th></tr></thead>
+            <thead><tr>
+                <th>#</th><th>EQUIPO</th><th>GR</th><th>PJ</th><th>V</th><th>PTS</th><th>DIF</th><th>ZONA</th>
+            </tr></thead>
             <tbody>
             ${ranking.map((r,i)=>{
                 const pos=i+1;
@@ -830,98 +662,279 @@ function mostrarTabla() {
                 </tr>`;
             }).join('')}
             </tbody>
-        </table>`;
-    if(tablaModal) tablaModal.classList.add('active');
+        </table>
+        <div style="display:flex;gap:12px;justify-content:center;margin-top:16px;font-size:.7rem;flex-wrap:wrap">
+            <span><span class="zona-tag direct">DIRECTO</span> Top 4 → Cuartos</span>
+            <span><span class="zona-tag playoff">PLAYOFF</span> 5º-12º → Playoff</span>
+            <span><span class="zona-tag elim">ELIMINADO</span> 13º-16º → Fuera</span>
+        </div>`;
+    tablaModal.classList.add('active');
 }
 
 // ----------------------------------------------------------------
-// UTILS ESTADÍSTICAS
+// PLAYOFFS (5º al 12º → 4 partidos)
 // ----------------------------------------------------------------
-function clave(a,b) { return [a,b].sort().join('|'); }
-function getPartidosEquipo(nombre) { return estadoApp.calendario.filter(p => p.t1 === nombre || p.t2 === nombre); }
-function getWins(nombre) {
-    let wins = 0;
-    estadoApp.calendario.forEach(p => {
-        const r = estadoApp.resultados[clave(p.t1, p.t2)];
-        if (r && r.s1 !== '' && r.s2 !== '') {
-            const sorted = [p.t1, p.t2].sort();
-            if (nombre === sorted[0] && parseInt(r.s1) > parseInt(r.s2)) wins++;
-            if (nombre === sorted[1] && parseInt(r.s2) > parseInt(r.s1)) wins++;
-        }
-    });
-    return wins;
-}
-function getPuntos(nombre) {
-    let pts = 0;
-    estadoApp.calendario.forEach(p => {
-        const r = estadoApp.resultados[clave(p.t1, p.t2)];
-        if (r && r.s1 !== '' && r.s2 !== '') {
-            const sorted = [p.t1, p.t2].sort(); const s1 = parseInt(r.s1); const s2 = parseInt(r.s2);
-            if (nombre === sorted[0] && s1 > s2) pts += 3;
-            if (nombre === sorted[1] && s2 > s1) pts += 3;
-            if (s1 === s2) pts += 1;
-        }
-    });
-    return pts;
-}
-function getDiff(nombre) {
-    let favor = 0; let contra = 0;
-    estadoApp.calendario.forEach(p => {
-        const r = estadoApp.resultados[clave(p.t1, p.t2)];
-        if (r && r.s1 !== '' && r.s2 !== '') {
-            const sorted = [p.t1, p.t2].sort(); const s1 = parseInt(r.s1); const s2 = parseInt(r.s2);
-            if (nombre === sorted[0]) { favor += s1; contra += s2; } 
-            else if (nombre === sorted[1]) { favor += s2; contra += s1; }
-        }
-    });
-    return favor - contra;
-}
-function getRanking() {
-    return equipos.map(eq => ({
-        eq, pts: getPuntos(eq.nombre), wins: getWins(eq.nombre), diff: getDiff(eq.nombre),
-        pj: getPartidosEquipo(eq.nombre).filter(p=>{ const r=estadoApp.resultados[clave(p.t1,p.t2)]; return r&&r.s1!==''&&r.s2!==''; }).length
-    })).sort((a,b) => b.pts-a.pts || b.wins-a.wins || b.diff-a.diff);
-}
-function shuffle(arr) {
-    for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; } return arr;
-}
-
-function generarJornadas() {
-    const todos = []; const vistos = new Set();
-    const add = (a,b) => { const k = [a,b].sort().join('|'); if(!vistos.has(k)){ vistos.add(k); todos.push({t1:a,t2:b}); } };
-    letras.forEach(g => { const arr = shuffle([...GRUPOS[g].map(e=>e.nombre)]); add(arr[0],arr[1]); add(arr[2],arr[3]); });
-    const pares = [['A','B'],['A','C'],['A','D'],['B','C'],['B','D'],['C','D']];
-    pares.forEach(([g1,g2]) => {
-        const a1 = shuffle([...GRUPOS[g1].map(e=>e.nombre)]); const a2 = shuffle([...GRUPOS[g2].map(e=>e.nombre)]);
-        a1.forEach((t,i) => add(t, a2[i]));
-    });
-    return distribuirEnJornadas(shuffle(todos));
-}
-function distribuirEnJornadas(partidos) {
-    const J = [[],[],[],[]]; const usadoPorJornada = [{},{},{},{}];
-    const puedeIr = (p, j) => !usadoPorJornada[j][p.t1] && !usadoPorJornada[j][p.t2];
-    const marcar = (p, j) => { usadoPorJornada[j][p.t1] = true; usadoPorJornada[j][p.t2] = true; J[j].push(p); };
-    const colocar = (idx) => {
-        if(idx === partidos.length) return true; const p = partidos[idx];
-        for(let j=0; j<4; j++){
-            if(J[j].length < 8 && puedeIr(p,j)){
-                marcar(p,j); if(colocar(idx+1)) return true; J[j].pop();
-                delete usadoPorJornada[j][p.t1]; delete usadoPorJornada[j][p.t2];
-            }
-        }
-        return false;
-    };
-    let intentos = 0;
-    while(!colocar(0) && intentos < 20){
-        J.forEach(j=>j.length=0); usadoPorJornada.forEach(u=>{ for(const k in u) delete u[k]; });
-        shuffle(partidos); intentos++;
-    }
-    return J;
-}
-
-// Carga visual cuando Ably esté conectado
-ably.connection.on('connected', () => {
-    console.log('Ably conectado ✓');
-    cargarEstadoLocal();
-    procesarCambioEstado();
+btnPlayoffs.addEventListener('click', () => {
+    mostrarPlayoffs();
+    btnPlayoffs.style.display = 'none';
+    btnBracket.style.display = 'inline-block';
 });
+
+function mostrarPlayoffs() {
+    container.innerHTML = '';
+    const tf = document.getElementById('btn-tabla-flotante');
+    if (tf) tf.style.display = 'none';
+
+    const ranking = getRanking();
+    const zona = ranking.slice(4,12);
+
+    playoffsData = [
+        { t1:zona[0].eq, t2:zona[7].eq, seed1:5,  seed2:12, ganador:null, s1:'', s2:'' },
+        { t1:zona[1].eq, t2:zona[6].eq, seed1:6,  seed2:11, ganador:null, s1:'', s2:'' },
+        { t1:zona[2].eq, t2:zona[5].eq, seed1:7,  seed2:10, ganador:null, s1:'', s2:'' },
+        { t1:zona[3].eq, t2:zona[4].eq, seed1:8,  seed2:9,  ganador:null, s1:'', s2:'' },
+    ];
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'playoffs-wrapper';
+    wrapper.innerHTML = `
+        <h2 class="playoffs-title">FASE PLAYOFF</h2>
+        <p class="playoffs-subtitle">DOBLE CLIC PARA INTRODUCIR RESULTADO</p>
+        <div class="playoffs-grid" id="playoffs-grid"></div>`;
+
+    const grid = wrapper.querySelector('#playoffs-grid');
+    playoffsData.forEach((pd,i) => {
+        const el = document.createElement('div');
+        el.className = 'playoff-match';
+        el.id = `plmatch-${i}`;
+        renderPlayoffMatch(el, pd);
+        el.ondblclick = () => abrirModalResultado(
+            pd.t1, pd.t2, pd.s1, pd.s2,
+            (s1,s2) => {
+                pd.s1=s1; pd.s2=s2;
+                pd.ganador = s1>s2 ? pd.t1 : pd.t2;
+                renderPlayoffMatch(el, pd);
+                el.classList.add('done');
+            }
+        );
+        grid.appendChild(el);
+    });
+    container.appendChild(wrapper);
+}
+
+function renderPlayoffMatch(el, pd) {
+    const gNom = pd.ganador?.nombre;
+    const t1L = gNom && gNom!==pd.t1.nombre;
+    const t2L = gNom && gNom!==pd.t2.nombre;
+    el.innerHTML = `
+        <div class="playoff-team ${t1L?'loser':''}">
+            <div><span class="playoff-seed">#${pd.seed1}</span>
+            <img src="${pd.t1.logo}" onerror="this.style.display='none'"></div>
+            <span>${pd.t1.nombre}</span>
+        </div>
+        <div class="playoff-vs">VS</div>
+        <div class="playoff-team ${t2L?'loser':''}" style="flex-direction:row-reverse;text-align:right">
+            <div><span class="playoff-seed">#${pd.seed2}</span>
+            <img src="${pd.t2.logo}" onerror="this.style.display='none'"></div>
+            <span>${pd.t2.nombre}</span>
+        </div>
+        <div class="playoff-done-badge">${pd.ganador?'✓':'—'}</div>`;
+}
+
+// ----------------------------------------------------------------
+// MODAL RESULTADO GENÉRICO
+// ----------------------------------------------------------------
+function abrirModalResultado(eq1, eq2, s1prev, s2prev, onConfirm) {
+    modalCard.innerHTML = `
+        <h2 style="font-family:'BertholdBlock'; text-align:center; color:var(--omen-cyan); margin-bottom:20px; font-size:1.3rem; letter-spacing:3px">RESULTADO</h2>
+        <div class="modal-score-row">
+            <div class="eq-blk">
+                <img src="${eq1.logo}" onerror="this.style.display='none'">
+                <div class="eq-name">${eq1.nombre}</div>
+            </div>
+            <input type="number" id="ms1" class="input-score" value="${s1prev}" min="0" placeholder="0">
+            <span style="font-family:'BertholdBlock';font-size:2rem;color:var(--omen-purple)">—</span>
+            <input type="number" id="ms2" class="input-score" value="${s2prev}" min="0" placeholder="0">
+            <div class="eq-blk">
+                <img src="${eq2.logo}" onerror="this.style.display='none'">
+                <div class="eq-name">${eq2.nombre}</div>
+            </div>
+        </div>
+        <button class="btn-valorant" id="ms-confirm" style="width:100%"><span class="btn-content">CONFIRMAR</span></button>`;
+    modal.classList.add('active');
+    modalCard.querySelector('#ms-confirm').onclick = () => {
+        const s1 = parseInt(modalCard.querySelector('#ms1').value);
+        const s2 = parseInt(modalCard.querySelector('#ms2').value);
+        if(isNaN(s1)||isNaN(s2)||s1===s2){ alert('Resultado inválido (no puede haber empate).'); return; }
+        modal.classList.remove('active');
+        onConfirm(s1,s2);
+    };
+}
+
+// ----------------------------------------------------------------
+// BRACKET FINAL (Cuartos → Semis → Final)
+// ----------------------------------------------------------------
+btnBracket.addEventListener('click', () => {
+    iniciarBracket();
+    btnBracket.style.display = 'none';
+});
+
+function iniciarBracket() {
+    const ranking = getRanking();
+    const top4 = ranking.slice(0,4).map(r=>r.eq);
+    const gpWinners = playoffsData.map(pd => pd.ganador || { nombre:'TBD', logo:'' });
+
+    bracketData = {
+        qf: [
+            { id:'qf0', t1:top4[0], t2:gpWinners[3], s1:'', s2:'', ganador:null },
+            { id:'qf1', t1:top4[1], t2:gpWinners[2], s1:'', s2:'', ganador:null },
+            { id:'qf2', t1:top4[2], t2:gpWinners[1], s1:'', s2:'', ganador:null },
+            { id:'qf3', t1:top4[3], t2:gpWinners[0], s1:'', s2:'', ganador:null },
+        ],
+        sf: [
+            { id:'sf0', t1:{nombre:'TBD',logo:''}, t2:{nombre:'TBD',logo:''}, s1:'', s2:'', ganador:null },
+            { id:'sf1', t1:{nombre:'TBD',logo:''}, t2:{nombre:'TBD',logo:''}, s1:'', s2:'', ganador:null },
+        ],
+        fn: [
+            { id:'fn0', t1:{nombre:'TBD',logo:''}, t2:{nombre:'TBD',logo:''}, s1:'', s2:'', ganador:null },
+        ]
+    };
+    renderBracket();
+}
+
+function renderBracket() {
+    container.innerHTML = '';
+    const outer = document.createElement('div');
+    outer.className = 'bracket-outer';
+    const bc = document.createElement('div');
+    bc.className = 'bracket-container';
+
+    bc.appendChild(crearColumna('CUARTOS DE FINAL', bracketData.qf, 'qf'));
+    bc.appendChild(crearColumna('SEMIFINALES', bracketData.sf, 'sf'));
+    bc.appendChild(crearColumna('⚡ GRAN FINAL', bracketData.fn, 'fn'));
+
+    outer.appendChild(bc);
+    container.appendChild(outer);
+}
+
+function crearColumna(titulo, partidos, fase) {
+    const col = document.createElement('div');
+    col.className = 'bracket-column';
+    col.id = `col-${fase}`;
+
+    const tit = document.createElement('div');
+    tit.className = 'bracket-col-title';
+    tit.textContent = titulo;
+    col.appendChild(tit);
+
+    partidos.forEach((p, i) => {
+        col.appendChild(crearMatchBox(p, fase, i));
+    });
+    return col;
+}
+
+function crearMatchBox(p, fase, idx) {
+    const box = document.createElement('div');
+    box.className = 'match-box' + (fase==='fn'?' final-box':'');
+    box.id = `mb-${p.id}`;
+
+    const esTBD = p.t1.nombre==='TBD' || p.t2.nombre==='TBD';
+    if(esTBD) box.classList.add('tbd');
+
+    renderMatchBox(box, p);
+
+    if(!esTBD) {
+        box.ondblclick = () => {
+            abrirModalResultado(p.t1, p.t2, p.s1, p.s2, (s1,s2) => {
+                p.s1=s1; p.s2=s2;
+                p.ganador = s1>s2 ? p.t1 : p.t2;
+                renderMatchBox(box, p);
+                avanzarBracket(fase, idx, p.ganador);
+                if(fase==='fn') setTimeout(()=>mostrarCampeon(p.ganador.nombre, p.ganador.logo), 400);
+            });
+        };
+    }
+    return box;
+}
+
+function renderMatchBox(box, p) {
+    const g = p.ganador?.nombre;
+    const t1L = g && g!==p.t1.nombre;
+    const t2L = g && g!==p.t2.nombre;
+    const img = eq => eq.logo ? `<img src="${eq.logo}" onerror="this.style.display='none'">` : `<div style="width:28px;height:28px;background:#222;border-radius:4px"></div>`;
+    box.innerHTML = `
+        <div class="mtr ${t1L?'loser':''}">
+            ${img(p.t1)}
+            <span class="mtr-name">${p.t1.nombre}</span>
+            ${g?`<span class="mtr-score">${p.s1}</span>`:''}
+        </div>
+        <div class="vs-line"></div>
+        <div class="mtr ${t2L?'loser':''}">
+            ${img(p.t2)}
+            <span class="mtr-name">${p.t2.nombre}</span>
+            ${g?`<span class="mtr-score">${p.s2}</span>`:''}
+        </div>`;
+}
+
+function avanzarBracket(fase, idx, ganador) {
+    let destFase, destIdx, destSlot;
+
+    if(fase==='qf') {
+        destFase='sf';
+        destIdx = idx<2 ? 0 : 1;
+        destSlot = idx%2===0 ? 't1' : 't2';
+    } else if(fase==='sf') {
+        destFase='fn'; destIdx=0;
+        destSlot = idx===0 ? 't1' : 't2';
+    } else return;
+
+    const arr = destFase==='sf' ? bracketData.sf : bracketData.fn;
+    arr[destIdx][destSlot] = ganador;
+
+    const destBox = document.getElementById(`mb-${arr[destIdx].id}`);
+    if(!destBox) return;
+    renderMatchBox(destBox, arr[destIdx]);
+
+    const p = arr[destIdx];
+    if(p.t1.nombre!=='TBD' && p.t2.nombre!=='TBD') {
+        destBox.classList.remove('tbd');
+        destBox.ondblclick = () => {
+            abrirModalResultado(p.t1, p.t2, p.s1, p.s2, (s1,s2) => {
+                p.s1=s1; p.s2=s2;
+                p.ganador = s1>s2 ? p.t1 : p.t2;
+                renderMatchBox(destBox, p);
+                avanzarBracket(destFase, destIdx, p.ganador);
+                if(destFase==='fn') setTimeout(()=>mostrarCampeon(p.ganador.nombre, p.ganador.logo), 400);
+            });
+        };
+    }
+}
+
+// ----------------------------------------------------------------
+// CAMPEÓN
+// ----------------------------------------------------------------
+function mostrarCampeon(nombre, logo) {
+    const ov = document.createElement('div');
+    ov.className = 'champion-overlay';
+    ov.innerHTML = `
+        <h1 class="champion-title">¡CAMPEÓN VOL. II!</h1>
+        <img src="${logo}" class="champion-logo" onerror="this.style.display='none'">
+        <h2 class="champion-name">${nombre}</h2>
+        <button class="btn-valorant" onclick="location.reload()" style="margin-top:50px">
+            <span class="btn-content">FINALIZAR TORNEO</span>
+        </button>`;
+    document.body.appendChild(ov);
+    if(audioChamp){ audioChamp.currentTime=0; audioChamp.play(); }
+    setTimeout(()=>ov.classList.add('active'), 100);
+}
+
+// ----------------------------------------------------------------
+// UTILS
+// ----------------------------------------------------------------
+function shuffle(arr) {
+    for(let i=arr.length-1;i>0;i--){
+        const j=Math.floor(Math.random()*(i+1));
+        [arr[i],arr[j]]=[arr[j],arr[i]];
+    }
+    return arr;
+}
