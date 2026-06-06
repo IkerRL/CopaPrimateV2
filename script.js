@@ -4,7 +4,7 @@
 
 // !!! CONFIGURACIÓN DE ABLY !!!
 // Intentará leer de las variables de Vercel, si no, buscará una ventana global (para local)
-const ABLY_API_KEY = 'TU_API_KEY_DE_ABLY';
+const ABLY_API_KEY = 'ngPWJA.-sqsQQ:zUVSXMBliVDlh2zkgBvKFF2JEPi4dCOlAQRzMX_md4E';
 
 // --- LÓGICA DE MULTISALA (ROOMS) Y ROLES ---
 const urlParams = new URLSearchParams(window.location.search);
