@@ -24,7 +24,7 @@ if (!roomId) {
 }
 
 // Comprobar si es un overlay/espectador
-const isSpectator = urlParams.get('view') === 'spectator';
+const isSpectator = false; // Todos son admin
 
 // Inicializar conexión con Ably
 const ably = new Ably.Realtime({
@@ -131,16 +131,12 @@ function cargarEstadoLocal() {
 }
 
 function enviarEstado() {
-    if (isSpectator) return;
     guardarEstadoLocal();
-    console.log('Publicando estado...', estadoApp.faseActual);
     channel.publish('cambio_estado', estadoApp)
-        .then(() => console.log('Estado publicado OK ✓'))
         .catch(e => console.error('Error publicando estado:', e));
 }
 
 function publicarSonido() {
-    if (isSpectator) return;
     channel.publish('reproducir_sonido', { tipo: 'mono' });
 }
 
@@ -148,9 +144,9 @@ function publicarSonido() {
 // RECEPCIÓN DE DATOS EN TIEMPO REAL (SUBSCRIBE)
 // ----------------------------------------------------------------
 channel.subscribe((message) => {
-    console.log('Mensaje recibido:', message.name);
     if (message.name === 'cambio_estado') {
         estadoApp = message.data;
+        guardarEstadoLocal();
         procesarCambioEstado();
     }
     if (message.name === 'reproducir_sonido') {
@@ -162,9 +158,6 @@ channel.subscribe((message) => {
             audioChamp.currentTime = 0;
             audioChamp.play().catch(e => console.log("Interacción requerida para audio"));
         }
-    }
-    if (message.name === 'pedir_estado') {
-        if (!isSpectator) enviarEstado();
     }
 });
 
@@ -928,27 +921,6 @@ function distribuirEnJornadas(partidos) {
 // Carga visual cuando Ably esté conectado
 ably.connection.on('connected', () => {
     console.log('Ably conectado ✓');
-    if (!isSpectator) {
-        const restaurado = cargarEstadoLocal();
-        procesarCambioEstado();
-        // Siempre publicar al conectar para que espectadores reciban el estado
-        setTimeout(() => enviarEstado(), 500);
-    } else {
-        // Espectador: pedir estado al admin, con reintentos
-        let intentos = 0;
-        const pedirEstado = () => {
-            console.log('Pidiendo estado... intento', intentos + 1);
-            channel.publish('pedir_estado', {});
-            intentos++;
-            if (intentos < 5) {
-                setTimeout(() => {
-                    // Si aún no tenemos datos reales, reintentamos
-                    if (estadoApp.calendario.length === 0 && estadoApp.faseActual === 'inicial') {
-                        pedirEstado();
-                    }
-                }, 2000);
-            }
-        };
-        setTimeout(pedirEstado, 500);
-    }
+    cargarEstadoLocal();
+    procesarCambioEstado();
 });
