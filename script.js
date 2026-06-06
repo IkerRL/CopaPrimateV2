@@ -147,26 +147,28 @@ function publicarSonido() {
 // ----------------------------------------------------------------
 // RECEPCIÓN DE DATOS EN TIEMPO REAL (SUBSCRIBE)
 // ----------------------------------------------------------------
-channel.subscribe('cambio_estado', (message) => {
-    estadoApp = message.data;
-    procesarCambioEstado();
-});
+(async () => {
+    await channel.subscribe('cambio_estado', (message) => {
+        estadoApp = message.data;
+        procesarCambioEstado();
+    });
 
-channel.subscribe('reproducir_sonido', (message) => {
-    if (message.data.tipo === 'mono' && audioMono) {
-        audioMono.currentTime = 0;
-        audioMono.play().catch(e => console.log("Interacción requerida para audio"));
-    }
-    if (message.data.tipo === 'champions' && audioChamp) {
-        audioChamp.currentTime = 0;
-        audioChamp.play().catch(e => console.log("Interacción requerida para audio"));
-    }
-});
+    await channel.subscribe('reproducir_sonido', (message) => {
+        if (message.data.tipo === 'mono' && audioMono) {
+            audioMono.currentTime = 0;
+            audioMono.play().catch(e => console.log("Interacción requerida para audio"));
+        }
+        if (message.data.tipo === 'champions' && audioChamp) {
+            audioChamp.currentTime = 0;
+            audioChamp.play().catch(e => console.log("Interacción requerida para audio"));
+        }
+    });
 
-// Sin presencia — el espectador pide estado al conectar via mensaje normal
-channel.subscribe('pedir_estado', () => {
-    if (!isSpectator) enviarEstado();
-});
+    // Sin presencia — el espectador pide estado al conectar via mensaje normal
+    await channel.subscribe('pedir_estado', () => {
+        if (!isSpectator) enviarEstado();
+    });
+})();
 
 // ----------------------------------------------------------------
 // MÁQUINA DE ESTADOS VISUAL
