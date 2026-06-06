@@ -74,7 +74,8 @@ let estadoApp = {
     playoffsData: [],
     bracketData: null,
     idx_sorteo: 0,
-    sorteoCompletado: false
+    sorteoCompletado: false,
+    idx_revelado: 0  // cuántos equipos se han revelado
 };
 
 // ----------------------------------------------------------------
@@ -102,6 +103,11 @@ if (isSpectator) {
     if(tablaModal) tablaModal.addEventListener('click', e => { if(e.target===tablaModal) tablaModal.classList.remove('active'); });
     document.querySelectorAll('.btn-sonido').forEach(m => m.addEventListener('click', () => { 
         publicarSonido();
+        if (estadoApp.faseActual === 'inicial' && estadoApp.idx_revelado < equipos.length) {
+            estadoApp.idx_revelado++;
+            procesarCambioEstado();
+            enviarEstado();
+        }
     }));
 }
 
@@ -221,9 +227,10 @@ function renderInicial() {
     if(!container) return;
     container.innerHTML = '';
     container.style.cssText = '';
-    equipos.forEach(eq => {
+    equipos.forEach((eq, i) => {
         const card = document.createElement('div');
-        card.className = 'card-equipo';
+        const revelado = i < (estadoApp.idx_revelado || 0);
+        card.className = 'card-equipo' + (revelado ? ' revealed' : '');
         card.innerHTML = `
             <div class="smoke-cover"></div>
             <div class="grupo-badge ${eq.grupo}">GRUPO ${eq.grupo}</div>
@@ -234,12 +241,6 @@ function renderInicial() {
                     <div class="jugadores-row">${eq.jugadores.map(j=>`<span>👤 ${j}</span>`).join('')}</div>
                 </div>
             </div>`;
-        
-        if (!isSpectator) {
-            card.addEventListener('click', () => {
-                card.classList.add('revealed');
-            });
-        }
         container.appendChild(card);
     });
 }
