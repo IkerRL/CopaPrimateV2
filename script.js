@@ -31,10 +31,7 @@ const ably = new Ably.Realtime({
     key: ABLY_API_KEY,
     clientId: (isSpectator ? 'spectator_' : 'admin_') + Math.random().toString(36).substring(2, 9)
 });
-// rewind:1 hace que el nuevo suscriptor reciba el último mensaje publicado automáticamente
-const channel = ably.channels.get(`copa_primate_${roomId}`, {
-    params: { rewind: '1' }
-});
+const channel = ably.channels.get(`copa_primate_${roomId}`);
 
 // --- EQUIPOS Y GRUPOS ---
 const GRUPOS = {
@@ -136,7 +133,10 @@ function cargarEstadoLocal() {
 function enviarEstado() {
     if (isSpectator) return;
     guardarEstadoLocal();
-    channel.publish('cambio_estado', estadoApp);
+    console.log('Publicando estado...', estadoApp.faseActual);
+    channel.publish('cambio_estado', estadoApp)
+        .then(() => console.log('Estado publicado OK ✓'))
+        .catch(e => console.error('Error publicando estado:', e));
 }
 
 function publicarSonido() {
