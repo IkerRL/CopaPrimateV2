@@ -3,8 +3,8 @@
 // ================================================================
 
 // !!! CONFIGURACIÓN DE ABLY !!!
-// Regístrate en ably.com, crea una app gratuita y pega tu API Key aquí:
-const ABLY_API_KEY = 'ngPWJA.-sqsQQ:zUVSXMBliVDlh2zkgBvKFF2JEPi4dCOlAQRzMX_md4EY';
+// Intentará leer de las variables de Vercel, si no, buscará una ventana global (para local)
+const ABLY_API_KEY = window.ENV_ABLY_KEY || 'ngPWJA.-sqsQQ:zUVSXMBliVDlh2zkgBvKFF2JEPi4dCOlAQRzMX_md4E';
 
 // --- LÓGICA DE MULTISALA (ROOMS) Y ROLES ---
 const urlParams = new URLSearchParams(window.location.search);
