@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Copa Primate - Vol. II</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- MQTT.js para sincronización en tiempo real -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mqtt/4.3.7/mqtt.min.js"></script>
+</head>
+<body>
+<div class="noise-overlay"></div>
+<div class="omen-bg">
+    <div class="bg-energy-core"></div>
+    <div class="vignette"></div>
+</div>
+
+<header class="main-header">
+    <div class="header-content">
+        <h1 class="titulo-principal">COPA PRIMATE</h1>
+        <div class="vol-row">
+            <img src="monito-der.png" class="sticker-monkey btn-sonido" title="¡Haz clic!">
+            <h2 class="vol-text">VOL. II</h2>
+            <img src="monito-izq.png" class="sticker-monkey btn-sonido" title="¡Haz clic!">
+        </div>
+    </div>
+</header>
+
+<main class="main-content">
+    <section class="grid-equipos" id="container-equipos"></section>
+    <footer class="footer-controls" id="footer-controls">
+        <button class="btn-valorant" id="btn-sorteo"><span class="btn-content">⚡ INICIAR SORTEO</span></button>
+        <button class="btn-valorant" id="btn-liga" style="display:none"><span class="btn-content">FASE DE LIGA</span></button>
+        <button class="btn-valorant" id="btn-playoffs" style="display:none"><span class="btn-content">PLAYOFFS</span></button>
+        <button class="btn-valorant" id="btn-bracket" style="display:none"><span class="btn-content">FASE FINAL</span></button>
+    </footer>
+</main>
+
+<!-- OVERLAY SORTEO -->
+<div id="sorteo-overlay" class="sorteo-overlay">
+    <div class="sorteo-panel">
+        <h2 class="sorteo-title">SORTEO DE JORNADAS</h2>
+        <div class="sorteo-grupos-display" id="sorteo-grupos-display"></div>
+        <div class="sorteo-center">
+            <div class="sorteo-ball-wrap">
+                <div class="sorteo-ball" id="sorteo-ball">▶</div>
+            </div>
+            <div class="sorteo-info" id="sorteo-info">Pulsa el balón para sortear</div>
+            <div class="sorteo-match-reveal" id="sorteo-match-reveal"></div>
+        </div>
+        <!-- Jornadas resultado -->
+        <div class="sorteo-jornadas" id="sorteo-jornadas">
+            <div class="sj-col" id="sj-0"><div class="sj-title">JORNADA 1</div></div>
+            <div class="sj-col" id="sj-1"><div class="sj-title">JORNADA 2</div></div>
+            <div class="sj-col" id="sj-2"><div class="sj-title">JORNADA 3</div></div>
+            <div class="sj-col" id="sj-3"><div class="sj-title">JORNADA 4</div></div>
+        </div>
+        <button class="btn-valorant" id="btn-cerrar-sorteo" style="display:none; margin-top:20px">
+            <span class="btn-content">COMENZAR TORNEO</span>
+        </button>
+    </div>
+</div>
+
+<!-- MODAL GENERAL -->
+<div class="team-modal" id="teamModal">
+    <div class="team-modal-card" id="teamModalCard"></div>
+</div>
+
+<!-- MODAL TABLA -->
+<div class="team-modal" id="tablaModal">
+    <div class="team-modal-card" id="tablaModalCard" style="max-width:900px;width:95%"></div>
+</div>
+
+<!-- PANEL MULTIJUGADOR / LIVE SYNC -->
+<div class="sync-widget" id="syncWidget">
+    <button class="sync-toggle-btn" id="syncToggleBtn">
+        <span class="pulse-icon red" id="syncPulse"></span>
+        <span class="toggle-text">📡 MULTIJUGADOR</span>
+    </button>
+    <div class="sync-panel" id="syncPanel">
+        <h3 class="sync-title">LOBBY MULTIJUGADOR</h3>
+        
+        <div class="sync-status-row">
+            <span class="status-label">ESTADO:</span>
+            <span class="status-badge status-disconnected" id="syncStatusBadge">DESCONECTADO</span>
+        </div>
+        
+        <div class="sync-field">
+            <label for="syncRoomInput">CÓDIGO DE SALA</label>
+            <div class="sync-input-row">
+                <input type="text" id="syncRoomInput" placeholder="Ej: COPA-1234" maxlength="20">
+                <button class="btn-sync-action" id="btnSyncConnect">CONECTAR</button>
+            </div>
+        </div>
+
+        <div class="sync-connected-actions" id="syncConnectedActions" style="display: none;">
+            <button class="btn-sync-secondary" id="btnSyncCopyLink">🔗 COPIAR ENLACE</button>
+            <button class="btn-sync-secondary btn-danger" id="btnSyncDisconnect">SALIR</button>
+        </div>
+
+        <details class="sync-advanced">
+            <summary>Configuración Avanzada</summary>
+            <div class="sync-field" style="margin-top: 10px;">
+                <label for="syncBrokerInput">BROKER MQTT</label>
+                <input type="text" id="syncBrokerInput" value="wss://broker.hivemq.com:8884/mqtt">
+            </div>
+            <div class="sync-field">
+                <label for="syncTopicInput">PREFIJO DE TEMA</label>
+                <input type="text" id="syncTopicInput" value="copa_primate">
+            </div>
+        </details>
+    </div>
+</div>
+
+<audio id="audioMono" src="sonido.mp3"></audio>
+<audio id="audioChampions" src="champions.mp3"></audio>
+
+<script src="script.js"></script>
+</body>
+</html>
