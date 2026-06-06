@@ -4,7 +4,7 @@
 
 // !!! CONFIGURACIÓN DE ABLY !!!
 // Regístrate en ably.com, crea una app gratuita y pega tu API Key aquí:
-const ABLY_API_KEY = 'TU_API_KEY_DE_ABLY';
+const ABLY_API_KEY = 'ngPWJA.-sqsQQ:zUVSXMBliVDlh2zkgBvKFF2JEPi4dCOlAQRzMX_md4EY';
 
 // --- LÓGICA DE MULTISALA (ROOMS) Y ROLES ---
 const urlParams = new URLSearchParams(window.location.search);
