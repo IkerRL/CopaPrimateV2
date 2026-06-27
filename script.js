@@ -23,8 +23,8 @@ const GRUPOS = {
         { nombre: "Stranger Picks", jugadores: ["TheDori", "Sotomi"], logo: "logo9.png" }
     ],
     D: [
+        { nombre: "Chuu-Chuu 100% MAX", jugadores: ["MakaQuillo", "Max"], logo: "logo8.png" },
         { nombre: "Makaco Ninja-Pelocho", jugadores: ["MakacoNinja", "Iker😎"], logo: "logo6.png" },
-        { nombre: "M&L’s", jugadores: ["Marru", "Lauliet"], logo: "logo13.png" },
         { nombre: "MARIIKS", jugadores: ["Acid", "Bru"], logo: "logo10.png" }
     ]
 };
@@ -57,11 +57,9 @@ const modal = document.getElementById('teamModal');
 const modalCard = document.getElementById('teamModalCard');
 const tablaModal = document.getElementById('tablaModal');
 const tablaCard = document.getElementById('tablaModalCard');
-const btnSorteo = document.getElementById('btn-sorteo');
 const btnLiga = document.getElementById('btn-liga');
 const btnPlayoffs = document.getElementById('btn-playoffs');
 const btnBracket = document.getElementById('btn-bracket');
-const sorteoOverlay = document.getElementById('sorteo-overlay');
 const audioMono = document.getElementById('audioMono');
 const audioChamp = document.getElementById('audioChampions');
 
@@ -136,7 +134,7 @@ renderInicial();
 const zoomOverlay = document.getElementById('zoom-overlay');
 const zoomCardContent = document.getElementById('zoom-card-content');
 zoomOverlay.addEventListener('click', () => {
-    if(!window.isPantalla) {
+    if (!window.isPantalla) {
         cerrarZoomEquipo();
     }
 });
@@ -165,191 +163,82 @@ function mostrarZoomEquipo(eq) {
 function cerrarZoomEquipo() {
     zoomOverlay.classList.remove('active');
     setTimeout(() => {
-        if(!zoomOverlay.classList.contains('active')) zoomOverlay.style.display = 'none';
+        if (!zoomOverlay.classList.contains('active')) zoomOverlay.style.display = 'none';
     }, 300);
-    
-    if(!window.isPantalla) {
+
+    if (!window.isPantalla) {
         zoomedTeam = null;
         broadcastState();
     }
 }
 
 // ----------------------------------------------------------------
-// SORTEO DE JORNADAS
+// INICIALIZACIÓN DE PARTIDOS
 // ----------------------------------------------------------------
-let idx_sorteo = 0;
-let total_sorteo = 0;
-let sorteo_animando = false;
 let partidos_generados = []; // todos los partidos ordenados por jornada
 
-btnSorteo.addEventListener('click', () => {
-    sorteoOverlay.classList.add('active');
-    prepararSorteo();
-});
+function initTorneo() {
+    if (jornadas.flat().length > 0) return; // ya inicializado
 
-function setupSorteoGruposDisplay() {
-    const display = document.getElementById('sorteo-grupos-display');
-    if (!display) return;
-    display.innerHTML = '';
-    letras.forEach(g => {
-        const col = document.createElement('div');
-        col.className = `sg-col ${g}`;
-        col.id = `sg-col-${g}`;
-        col.innerHTML = `<div class="sg-col-title">GRUPO ${g}</div>`;
-        GRUPOS[g].forEach(eq => {
-            const chip = document.createElement('div');
-            chip.className = 'sg-team';
-            chip.id = `sg-team-${eq.nombre.replace(/\s/g, '_')}`;
-            chip.innerHTML = `<img src="${eq.logo}" onerror="this.style.display='none'"><span>${eq.nombre}</span>`;
-            col.appendChild(chip);
-        });
-        display.appendChild(col);
-    });
-}
-
-function prepararSorteo() {
-    setupSorteoGruposDisplay();
-
-    for (let j = 0; j < 4; j++) {
-        const col = document.getElementById(`sj-${j}`);
-        col.innerHTML = `<div class="sj-title">JORNADA ${j + 1}</div>`;
-    }
-
-    document.getElementById('sorteo-info').textContent = 'Pulsa el balón para sortear';
-    document.getElementById('sorteo-match-reveal').textContent = '';
-    document.getElementById('btn-cerrar-sorteo').style.display = 'none';
-
-    jornadas = generarJornadas();
+    jornadas = [
+        // Jornada 1
+        [
+            { t1: "Soul Resonance", t2: "REHENKARMACIÓN" },
+            { t1: "Chuu-Chuu 100% MAX", t2: "Los Akrtona2" },
+            { t1: "MARIIKS", t2: "Entry Baiters" },
+            { t1: "Stranger Picks", t2: "Makaco Ninja-Pelocho" },
+            { t1: "Kizuna", t2: "Dream Team" },
+            { t1: "Sakura", t2: "Thunder Buddies" }
+        ],
+        // Jornada 2
+        [
+            { t1: "Soul Resonance", t2: "Los Akrtona2" },
+            { t1: "REHENKARMACIÓN", t2: "Entry Baiters" },
+            { t1: "Chuu-Chuu 100% MAX", t2: "Makaco Ninja-Pelocho" },
+            { t1: "MARIIKS", t2: "Dream Team" },
+            { t1: "Stranger Picks", t2: "Thunder Buddies" },
+            { t1: "Kizuna", t2: "Sakura" }
+        ],
+        // Jornada 3
+        [
+            { t1: "Soul Resonance", t2: "Entry Baiters" },
+            { t1: "Los Akrtona2", t2: "Makaco Ninja-Pelocho" },
+            { t1: "REHENKARMACIÓN", t2: "Dream Team" },
+            { t1: "Chuu-Chuu 100% MAX", t2: "Thunder Buddies" },
+            { t1: "MARIIKS", t2: "Sakura" },
+            { t1: "Stranger Picks", t2: "Kizuna" }
+        ],
+        // Jornada 4
+        [
+            { t1: "Soul Resonance", t2: "Makaco Ninja-Pelocho" },
+            { t1: "Entry Baiters", t2: "Dream Team" },
+            { t1: "Los Akrtona2", t2: "Thunder Buddies" },
+            { t1: "REHENKARMACIÓN", t2: "Sakura" },
+            { t1: "Chuu-Chuu 100% MAX", t2: "Kizuna" },
+            { t1: "MARIIKS", t2: "Stranger Picks" }
+        ]
+    ];
     partidos_generados = jornadas.flat();
     calendario = [...partidos_generados];
     partidos_generados.forEach(p => {
         resultados[clave(p.t1, p.t2)] = { s1: '', s2: '' };
     });
-
-    idx_sorteo = 0;
-    total_sorteo = partidos_generados.length;
-
-    const ball = document.getElementById('sorteo-ball');
-    ball.textContent = '▶';
-    ball.style.cursor = 'pointer';
-    ball.onclick = () => sortearSiguiente(ball);
-
-    broadcastState();
 }
 
-function generarJornadas() {
-    const todosNombres = shuffle(equipos.map(e => e.nombre));
-    const N = todosNombres.length; // 12
-    const J = [[], [], [], []]; // 4 jornadas
+// ----------------------------------------------------------------
+// CLAVE DE PARTIDO
+// ----------------------------------------------------------------
+function clave(a, b) { return [a, b].sort().join('|'); }
 
-    let list = [...todosNombres];
-    for (let r = 0; r < 4; r++) {
-        for (let i = 0; i < N / 2; i++) {
-            J[r].push({ t1: list[i], t2: list[N - 1 - i] });
-        }
-        // Rotar: list[0] se queda fijo, los demás rotan hacia la derecha
-        list = [list[0], list[N - 1], ...list.slice(1, N - 1)];
-    }
-    return J;
-}
-
-function sortearSiguiente(ball) {
-    if (sorteo_animando) return;
-    if (idx_sorteo >= total_sorteo) return;
-
-    // Si somos el admin, enviamos la señal de MQTT para que las pantallas de los rooms se animen simultáneamente
-    if (!window.isPantalla) {
-        publishMQTT({ type: 'SORTEO_NEXT' });
-    }
-
-    ejecutarSorteoSiguiente();
-}
-
-function ejecutarSorteoSiguiente() {
-    if (sorteo_animando) return;
-    if (idx_sorteo >= total_sorteo) return;
-
-    sorteo_animando = true;
-
-    let acumulado = 0;
-    let jornada_actual = 0;
-    let idx_en_jornada = idx_sorteo;
-    for (let j = 0; j < 4; j++) {
-        if (idx_sorteo < acumulado + jornadas[j].length) {
-            jornada_actual = j;
-            idx_en_jornada = idx_sorteo - acumulado;
-            break;
-        }
-        acumulado += jornadas[j].length;
-    }
-
-    const match = jornadas[jornada_actual][idx_en_jornada];
-    const eq1 = getEq(match.t1);
-    const eq2 = getEq(match.t2);
-    const infoEl = document.getElementById('sorteo-info');
-    const revealEl = document.getElementById('sorteo-match-reveal');
-    const ball = document.getElementById('sorteo-ball');
-
-    document.querySelectorAll('.sg-team').forEach(el => el.classList.remove('highlighted'));
-    document.getElementById(`sg-team-${match.t1.replace(/\s/g, '_')}`)?.classList.add('highlighted');
-    document.getElementById(`sg-team-${match.t2.replace(/\s/g, '_')}`)?.classList.add('highlighted');
-
-    if (ball) {
-        ball.classList.add('spinning');
-        ball.textContent = '...';
-    }
-    if (infoEl) infoEl.textContent = `JORNADA ${jornada_actual + 1} · PARTIDO ${idx_en_jornada + 1}/${jornadas[jornada_actual].length}`;
-    if (revealEl) revealEl.textContent = '';
-    try { audioMono.currentTime = 0; audioMono.play(); } catch (e) { }
-
-    setTimeout(() => {
-        if (ball) {
-            ball.classList.remove('spinning');
-            ball.textContent = `J${jornada_actual + 1}`;
-        }
-        if (revealEl) revealEl.textContent = `${match.t1} ⚡ ${match.t2}`;
-
-        const sjCol = document.getElementById(`sj-${jornada_actual}`);
-        if (sjCol) {
-            const chip = document.createElement('div');
-            chip.className = 'sj-match';
-            chip.innerHTML = `
-                <img src="${eq1.logo}" onerror="this.style.display='none'">
-                <span class="sj-vs">VS</span>
-                <img src="${eq2.logo}" onerror="this.style.display='none'">`;
-            sjCol.appendChild(chip);
-            setTimeout(() => chip.classList.add('visible'), 40);
-            sjCol.scrollTop = sjCol.scrollHeight;
-        }
-
-        idx_sorteo++;
-        sorteo_animando = false;
-
-        if (ball) {
-            if (idx_sorteo >= total_sorteo) {
-                ball.textContent = '✓';
-                ball.style.cursor = 'default';
-                ball.onclick = null;
-                if (infoEl) infoEl.textContent = '¡SORTEO COMPLETADO! ' + total_sorteo + ' PARTIDOS';
-                if (revealEl) revealEl.textContent = '';
-                const btnCerrar = document.getElementById('btn-cerrar-sorteo');
-                if (btnCerrar) btnCerrar.style.display = 'block';
-            } else {
-                setTimeout(() => { ball.textContent = '▶'; }, 500);
-            }
-        }
-
-        // Si somos el admin, propagamos el estado finalizado para persistencia
-        if (!window.isPantalla) {
-            broadcastState();
-        }
-    }, 800);
-}
-
-document.getElementById('btn-cerrar-sorteo').addEventListener('click', () => {
-    sorteoOverlay.classList.remove('active');
-    btnSorteo.style.display = 'none';
-    btnLiga.style.display = 'inline-block';
+// ----------------------------------------------------------------
+// FASE DE LIGA — VISTA POR JORNADAS
+// ----------------------------------------------------------------
+btnLiga.addEventListener('click', () => {
+    initTorneo();
+    currentPhase = 'liga';
+    mostrarLiga();
+    btnLiga.style.display = 'none';
+    btnPlayoffs.style.display = 'inline-block';
 
     let tf = document.getElementById('btn-tabla-flotante');
     if (!tf) {
@@ -362,22 +251,6 @@ document.getElementById('btn-cerrar-sorteo').addEventListener('click', () => {
     }
     tf.style.display = 'block';
 
-    broadcastState();
-});
-
-// ----------------------------------------------------------------
-// CLAVE DE PARTIDO
-// ----------------------------------------------------------------
-function clave(a, b) { return [a, b].sort().join('|'); }
-
-// ----------------------------------------------------------------
-// FASE DE LIGA — VISTA POR JORNADAS
-// ----------------------------------------------------------------
-btnLiga.addEventListener('click', () => {
-    currentPhase = 'liga';
-    mostrarLiga();
-    btnLiga.style.display = 'none';
-    btnPlayoffs.style.display = 'inline-block';
     broadcastState();
 });
 
@@ -1300,7 +1173,7 @@ function aplicarEstado(state) {
             mostrarZoomEquipo(getEq(zoomedTeam));
         } else {
             zoomOverlay.classList.remove('active');
-            setTimeout(() => { if(!zoomOverlay.classList.contains('active')) zoomOverlay.style.display = 'none'; }, 300);
+            setTimeout(() => { if (!zoomOverlay.classList.contains('active')) zoomOverlay.style.display = 'none'; }, 300);
         }
     }
 
