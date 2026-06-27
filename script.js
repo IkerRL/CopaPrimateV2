@@ -23,7 +23,7 @@ const GRUPOS = {
         { nombre: "Stranger Picks", jugadores: ["TheDori", "Sotomi"], logo: "logo9.png" }
     ],
     D: [
-        { nombre: "Chuu-Chuu 100% MAX", jugadores: ["MakaQuillo", "Max"], logo: "logo6.png" },
+        { nombre: "Makaco Ninja-Pelocho", jugadores: ["MakacoNinja", "Iker😎"], logo: "logo6.png" },
         { nombre: "M&L’s", jugadores: ["Marru", "Lauliet"], logo: "logo13.png" },
         { nombre: "MARIIKS", jugadores: ["Acid", "Bru"], logo: "logo10.png" }
     ]
