@@ -672,8 +672,8 @@ function getPuntos(nombre) {
             const sorted = [p.t1, p.t2].sort();
             const s1 = parseInt(r.s1);
             const s2 = parseInt(r.s2);
-            if (nombre === sorted[0] && s1 > s2) pts += 3;
-            if (nombre === sorted[1] && s2 > s1) pts += 3;
+            if (nombre === sorted[0] && s1 > s2) pts += 1;
+            if (nombre === sorted[1] && s2 > s1) pts += 1;
             if (s1 === s2) pts += 1;
         }
     });
