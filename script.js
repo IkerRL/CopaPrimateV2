@@ -10,23 +10,22 @@ const GRUPOS = {
     A: [
         { nombre: "Thunder Buddies", jugadores: ["Brrokeen", "Pipe"], logo: "logo3.png" },
         { nombre: "Los Akrtona2", jugadores: ["Kira", "Serax"], logo: "logo2.png" },
-        { nombre: "Chuu-Chuu 100% MAX", jugadores: ["MakaQuillo", "Max"], logo: "logo8.png" }
+        { nombre: "Chuu-Chuu 100% MAX", jugadores: ["MakaQuillo", "Max"], logo: "logo8.png" },
+        { nombre: "REHENKARMACIÓN", jugadores: ["Satha", "Makflat"], logo: "logo1.png" }
     ],
     B: [
-        { nombre: "REHENKARMACIÓN", jugadores: ["Satha", "Makflat"], logo: "logo1.png" },
         { nombre: "Entry Baiters", jugadores: ["レックウザ ", "Militantedelsoe"], logo: "logo5.png" },
-        { nombre: "Dream Team", jugadores: ["JoKker", "Pepardo"], logo: "logo7.png" }
+        { nombre: "Dream Team", jugadores: ["JoKker", "Pepardo"], logo: "logo7.png" },
+        { nombre: "Makaco Ninja-Pelocho", jugadores: ["MakacoNinja", "Iker😎"], logo: "logo6.png" },
+        { nombre: "Kizuna", jugadores: ["Alezita", "Sarix"], logo: "logo4.png" }
     ],
     C: [
-        { nombre: "Kizuna", jugadores: ["Alezita", "Sarix"], logo: "logo4.png" },
-        { nombre: "Makaco Ninja-Pelocho", jugadores: ["MakacoNinja", "Iker😎"], logo: "logo6.png" },
-        { nombre: "Sakura", jugadores: ["Gustavo", "Carlos"], logo: "logo14.png" }
-    ],
-    D: [
+        { nombre: "Sakura", jugadores: ["Gustavo", "Carlos"], logo: "logo14.png" },
         { nombre: "Soul Resonance", jugadores: ["KrypT", "IAngeil-"], logo: "logo11.png" },
         { nombre: "Stranger Picks", jugadores: ["TheDori", "Sotomi"], logo: "logo9.png" },
         { nombre: "MARIIKS", jugadores: ["Acid", "Bru"], logo: "logo10.png" }
     ]
+
 };
 
 // Lista plana de equipos
