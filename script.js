@@ -8,23 +8,23 @@
 // --- EQUIPOS Y GRUPOS (edita aquí) ---
 const GRUPOS = {
     A: [
-        { nombre: "REHENKARMACIÓN", jugadores: ["Satha", "Makflat"], logo: "logo1.png" },
+        { nombre: "Thunder Buddies", jugadores: ["Brrokeen", "Pipe"], logo: "logo3.png" },
         { nombre: "Los Akrtona2", jugadores: ["Kira", "Serax"], logo: "logo2.png" },
-        { nombre: "Entry Baiters", jugadores: ["レックウザ ", "Militantedelsoe"], logo: "logo5.png" }
+        { nombre: "Chuu-Chuu 100% MAX", jugadores: ["MakaQuillo", "Max"], logo: "logo8.png" }
     ],
     B: [
-        { nombre: "Kizuna", jugadores: ["Alezita", "Sarix"], logo: "logo4.png" },
-        { nombre: "Dream Team", jugadores: ["JoKker", "Pepardo"], logo: "logo7.png" },
-        { nombre: "Sakura", jugadores: ["Gustavo", "Carlos"], logo: "logo14.png" }
+        { nombre: "REHENKARMACIÓN", jugadores: ["Satha", "Makflat"], logo: "logo1.png" },
+        { nombre: "Entry Baiters", jugadores: ["レックウザ ", "Militantedelsoe"], logo: "logo5.png" },
+        { nombre: "Dream Team", jugadores: ["JoKker", "Pepardo"], logo: "logo7.png" }
     ],
     C: [
-        { nombre: "Soul Resonance", jugadores: ["KrypT", "IAngeil-"], logo: "logo11.png" },
-        { nombre: "Thunder Buddies", jugadores: ["Brrokeen", "Pipe"], logo: "logo3.png" },
-        { nombre: "Stranger Picks", jugadores: ["TheDori", "Sotomi"], logo: "logo9.png" }
+        { nombre: "Kizuna", jugadores: ["Alezita", "Sarix"], logo: "logo4.png" },
+        { nombre: "Makaco Ninja-Pelocho", jugadores: ["MakacoNinja", "Iker😎"], logo: "logo6.png" },
+        { nombre: "Sakura", jugadores: ["Gustavo", "Carlos"], logo: "logo14.png" }
     ],
     D: [
-        { nombre: "Chuu-Chuu 100% MAX", jugadores: ["MakaQuillo", "Max"], logo: "logo8.png" },
-        { nombre: "Makaco Ninja-Pelocho", jugadores: ["MakacoNinja", "Iker😎"], logo: "logo6.png" },
+        { nombre: "Soul Resonance", jugadores: ["KrypT", "IAngeil-"], logo: "logo11.png" },
+        { nombre: "Stranger Picks", jugadores: ["TheDori", "Sotomi"], logo: "logo9.png" },
         { nombre: "MARIIKS", jugadores: ["Acid", "Bru"], logo: "logo10.png" }
     ]
 };
@@ -183,39 +183,39 @@ function initTorneo() {
     jornadas = [
         // Jornada 1
         [
-            { t1: "Soul Resonance", t2: "REHENKARMACIÓN" },
-            { t1: "Chuu-Chuu 100% MAX", t2: "Los Akrtona2" },
-            { t1: "MARIIKS", t2: "Entry Baiters" },
-            { t1: "Stranger Picks", t2: "Makaco Ninja-Pelocho" },
-            { t1: "Kizuna", t2: "Dream Team" },
-            { t1: "Sakura", t2: "Thunder Buddies" }
+            { t1: "Thunder Buddies", t2: "Entry Baiters" },
+            { t1: "Los Akrtona2", t2: "Dream Team" },
+            { t1: "Chuu-Chuu 100% MAX", t2: "Makaco Ninja-Pelocho" },
+            { t1: "REHENKARMACIÓN", t2: "Kizuna" },
+            { t1: "Sakura", t2: "Soul Resonance" },
+            { t1: "Stranger Picks", t2: "MARIIKS" }
         ],
         // Jornada 2
         [
-            { t1: "Soul Resonance", t2: "Los Akrtona2" },
-            { t1: "REHENKARMACIÓN", t2: "Entry Baiters" },
-            { t1: "Chuu-Chuu 100% MAX", t2: "Makaco Ninja-Pelocho" },
-            { t1: "MARIIKS", t2: "Dream Team" },
-            { t1: "Stranger Picks", t2: "Thunder Buddies" },
-            { t1: "Kizuna", t2: "Sakura" }
+            { t1: "Thunder Buddies", t2: "Sakura" },
+            { t1: "Los Akrtona2", t2: "Stranger Picks" },
+            { t1: "Chuu-Chuu 100% MAX", t2: "Soul Resonance" },
+            { t1: "REHENKARMACIÓN", t2: "MARIIKS" },
+            { t1: "Entry Baiters", t2: "Dream Team" },
+            { t1: "Makaco Ninja-Pelocho", t2: "Kizuna" }
         ],
         // Jornada 3
         [
-            { t1: "Soul Resonance", t2: "Entry Baiters" },
-            { t1: "Los Akrtona2", t2: "Makaco Ninja-Pelocho" },
-            { t1: "REHENKARMACIÓN", t2: "Dream Team" },
-            { t1: "Chuu-Chuu 100% MAX", t2: "Thunder Buddies" },
-            { t1: "MARIIKS", t2: "Sakura" },
-            { t1: "Stranger Picks", t2: "Kizuna" }
+            { t1: "Thunder Buddies", t2: "Los Akrtona2" },
+            { t1: "Chuu-Chuu 100% MAX", t2: "REHENKARMACIÓN" },
+            { t1: "Entry Baiters", t2: "Sakura" },
+            { t1: "Dream Team", t2: "Stranger Picks" },
+            { t1: "Makaco Ninja-Pelocho", t2: "MARIIKS" },
+            { t1: "Kizuna", t2: "Soul Resonance" }
         ],
         // Jornada 4
         [
-            { t1: "Soul Resonance", t2: "Makaco Ninja-Pelocho" },
-            { t1: "Entry Baiters", t2: "Dream Team" },
-            { t1: "Los Akrtona2", t2: "Thunder Buddies" },
-            { t1: "REHENKARMACIÓN", t2: "Sakura" },
-            { t1: "Chuu-Chuu 100% MAX", t2: "Kizuna" },
-            { t1: "MARIIKS", t2: "Stranger Picks" }
+            { t1: "Thunder Buddies", t2: "Kizuna" },
+            { t1: "Los Akrtona2", t2: "Makaco Ninja-Pelocho" },
+            { t1: "Chuu-Chuu 100% MAX", t2: "Entry Baiters" },
+            { t1: "REHENKARMACIÓN", t2: "Dream Team" },
+            { t1: "Sakura", t2: "Stranger Picks" },
+            { t1: "Soul Resonance", t2: "MARIIKS" }
         ]
     ];
     partidos_generados = jornadas.flat();
@@ -223,6 +223,17 @@ function initTorneo() {
     partidos_generados.forEach(p => {
         resultados[clave(p.t1, p.t2)] = { s1: '', s2: '' };
     });
+
+    // Resultados Jornada 1
+    const setRes = (t1, t2, val1, val2) => {
+        const sorted = [t1, t2].sort();
+        if (sorted[0] === t1) {
+            resultados[clave(t1, t2)] = { s1: val1.toString(), s2: val2.toString() };
+        } else {
+            resultados[clave(t1, t2)] = { s1: val2.toString(), s2: val1.toString() };
+        }
+    };
+
 }
 
 // ----------------------------------------------------------------
