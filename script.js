@@ -16,12 +16,12 @@ const GRUPOS = {
     B: [
         { nombre: "Entry Baiters", jugadores: ["レックウザ ", "Militantedelsoe"], logo: "logo5.png" },
         { nombre: "Dream Team", jugadores: ["JoKker", "Pepardo"], logo: "logo7.png" },
-        { nombre: "Makaco Ninja-Pelocho", jugadores: ["MakacoNinja", "Iker😎"], logo: "logo6.png" },
+        { nombre: "Makaco Ninja-Pelocho", jugadores: ["MakacoNinja", "Iker 😎"], logo: "logo6.png" },
         { nombre: "Kizuna", jugadores: ["Alezita", "Sarix"], logo: "logo4.png" }
     ],
     C: [
         { nombre: "Sakura", jugadores: ["Gustavo", "Carlos"], logo: "logo14.png" },
-        { nombre: "Soul Resonance", jugadores: ["KrypT", "IAngeil-"], logo: "logo11.png" },
+        { nombre: "Soul Resonance", jugadores: ["KrypT", "Charly"], logo: "logo11.png" },
         { nombre: "Stranger Picks", jugadores: ["TheDori", "Sotomi"], logo: "logo9.png" },
         { nombre: "MARIIKS", jugadores: ["Acid", "Bru"], logo: "logo10.png" }
     ]
