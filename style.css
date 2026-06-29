@@ -37,6 +37,43 @@ body { background:var(--omen-deep); color:white; font-family:'Inter',sans-serif;
 .main-content { padding:20px; }
 .grid-equipos { display:flex; flex-wrap:wrap; justify-content:center; gap:16px; padding:20px 40px; max-width:1800px; margin:0 auto; }
 
+/* PRESENTACION GRUPOS */
+.presentacion-wrapper {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 40px;
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    align-items: start;
+}
+.presentacion-col {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    align-items: center;
+}
+.presentacion-title {
+    font-family: 'BertholdBlock';
+    color: var(--omen-cyan);
+    font-size: 2rem;
+    letter-spacing: 4px;
+    text-shadow: 0 0 15px rgba(255, 179, 0, 0.4);
+    margin-bottom: 10px;
+    text-align: center;
+}
+
+@media(max-width: 1000px) {
+    .presentacion-wrapper {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+@media(max-width: 700px) {
+    .presentacion-wrapper {
+        grid-template-columns: 1fr;
+    }
+}
+
 /* CARDS EQUIPOS */
 .card-equipo { width:280px; height:110px; background:var(--card-bg); border-radius:6px; border:3px solid var(--card-border); display:flex; align-items:center; padding:0 18px; position:relative; overflow:hidden; cursor:pointer; transition:.3s; }
 .card-equipo:hover { border-color:var(--omen-purple); transform:translateY(-3px); box-shadow:0 8px 30px rgba(0,0,0,0.2); }

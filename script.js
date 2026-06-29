@@ -85,48 +85,66 @@ document.querySelectorAll('.monkey-right').forEach(m => m.addEventListener('clic
 function renderInicial() {
     container.innerHTML = '';
     container.style.cssText = '';
-    equipos.forEach(eq => {
-        const card = document.createElement('div');
-        card.className = 'card-equipo';
-        card.setAttribute('data-equipo-nombre', eq.nombre);
-        if (revealedCards.includes(eq.nombre)) {
-            card.classList.add('revealed');
-        }
-        card.innerHTML = `
-            <div class="smoke-cover"></div>
-            <div class="grupo-badge ${eq.grupo}">GRUPO ${eq.grupo}</div>
-            <div class="equipo-content">
-                <img src="${eq.logo}" class="equipo-logo" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2255%22 height=%2255%22><rect width=%2255%22 height=%2255%22 rx=%228%22 fill=%22%23222%22/><text x=%2227%22 y=%2233%22 text-anchor=%22middle%22 fill=%22%23666%22 font-size=%2212%22>?</text></svg>'">
-                <div>
-                    <div class="nombre-equipo">${eq.nombre}</div>
-                    <div class="jugadores-row">${eq.jugadores.map(j => `<span>👤 ${j}</span>`).join('')}</div>
-                </div>
-            </div>`;
 
-        // Clic para revelar una tarjeta (se sincroniza a través de MQTT si es el Administrador)
-        card.addEventListener('click', () => {
-            if (!card.classList.contains('revealed')) {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'presentacion-wrapper';
+
+    Object.entries(GRUPOS).forEach(([g, eqList]) => {
+        const col = document.createElement('div');
+        col.className = 'presentacion-col';
+
+        const title = document.createElement('h2');
+        title.className = 'presentacion-title';
+        title.textContent = `GRUPO ${g}`;
+        col.appendChild(title);
+
+        eqList.forEach(eq => {
+            const card = document.createElement('div');
+            card.className = 'card-equipo';
+            card.setAttribute('data-equipo-nombre', eq.nombre);
+            if (revealedCards.includes(eq.nombre)) {
                 card.classList.add('revealed');
-                if (!revealedCards.includes(eq.nombre)) {
-                    revealedCards.push(eq.nombre);
+            }
+            card.innerHTML = `
+                <div class="smoke-cover"></div>
+                <div class="grupo-badge ${g}">GRUPO ${g}</div>
+                <div class="equipo-content">
+                    <img src="${eq.logo}" class="equipo-logo" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2255%22 height=%2255%22><rect width=%2255%22 height=%2255%22 rx=%228%22 fill=%22%23222%22/><text x=%2227%22 y=%2233%22 text-anchor=%22middle%22 fill=%22%23666%22 font-size=%2212%22>?</text></svg>'">
+                    <div>
+                        <div class="nombre-equipo">${eq.nombre}</div>
+                        <div class="jugadores-row">${eq.jugadores.map(j => `<span>👤 ${j}</span>`).join('')}</div>
+                    </div>
+                </div>`;
+
+            // Clic para revelar una tarjeta (se sincroniza a través de MQTT si es el Administrador)
+            card.addEventListener('click', () => {
+                if (!card.classList.contains('revealed')) {
+                    card.classList.add('revealed');
+                    if (!revealedCards.includes(eq.nombre)) {
+                        revealedCards.push(eq.nombre);
+                    }
+                    if (!window.isPantalla) {
+                        broadcastState();
+                    }
                 }
-                if (!window.isPantalla) {
+            });
+
+            // Doble clic para hacer zoom (sincroniza en pantalla)
+            card.addEventListener('dblclick', () => {
+                if (!window.isPantalla && card.classList.contains('revealed')) {
+                    zoomedTeam = eq.nombre;
+                    mostrarZoomEquipo(eq);
                     broadcastState();
                 }
-            }
+            });
+
+            col.appendChild(card);
         });
 
-        // Doble clic para hacer zoom (sincroniza en pantalla)
-        card.addEventListener('dblclick', () => {
-            if (!window.isPantalla && card.classList.contains('revealed')) {
-                zoomedTeam = eq.nombre;
-                mostrarZoomEquipo(eq);
-                broadcastState();
-            }
-        });
-
-        container.appendChild(card);
+        wrapper.appendChild(col);
     });
+
+    container.appendChild(wrapper);
 }
 renderInicial();
 
