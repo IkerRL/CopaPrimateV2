@@ -1101,17 +1101,13 @@ function connectMQTT(roomName) {
 
             if (msg.type === 'REQUEST_STATE') {
                 // Responder con el estado si tenemos algo
-                if (currentPhase !== 'inicial' || idx_sorteo > 0 || Object.keys(resultados).length > 0) {
+                if (currentPhase !== 'inicial' || Object.keys(resultados).length > 0) {
                     broadcastState();
                 }
             } else if (msg.type === 'STATE_UPDATE') {
-                if (!sorteo_animando) {
-                    isApplyingSyncState = true;
-                    aplicarEstado(msg.state);
-                    isApplyingSyncState = false;
-                }
-            } else if (msg.type === 'SORTEO_NEXT') {
-                ejecutarSorteoSiguiente();
+                isApplyingSyncState = true;
+                aplicarEstado(msg.state);
+                isApplyingSyncState = false;
             }
         } catch (e) {
             console.error('Error al procesar mensaje MQTT:', e);
@@ -1162,18 +1158,13 @@ function broadcastState() {
         resultados,
         playoffsData,
         bracketData,
-        idx_sorteo,
-        total_sorteo,
-        currentPhase,
         partidos_generados,
         revealedCards,
         zoomedTeam,
         activeJornadaAccordion,
-        btnSorteoDisplay: btnSorteo.style.display,
         btnLigaDisplay: btnLiga.style.display,
         btnPlayoffsDisplay: btnPlayoffs.style.display,
         btnBracketDisplay: btnBracket.style.display,
-        sorteoOverlayActive: sorteoOverlay.classList.contains('active'),
         btnTablaFlotanteDisplay: document.getElementById('btn-tabla-flotante')?.style.display || 'none'
     };
 
@@ -1190,8 +1181,6 @@ function aplicarEstado(state) {
     if (state.resultados) resultados = state.resultados;
     if (state.playoffsData) playoffsData = state.playoffsData;
     if (state.bracketData) bracketData = state.bracketData;
-    if (state.idx_sorteo !== undefined) idx_sorteo = state.idx_sorteo;
-    if (state.total_sorteo !== undefined) total_sorteo = state.total_sorteo;
     if (state.partidos_generados) partidos_generados = state.partidos_generados;
     currentPhase = state.currentPhase || 'inicial';
 
@@ -1206,18 +1195,9 @@ function aplicarEstado(state) {
     }
 
     // Botones
-    if (btnSorteo) btnSorteo.style.display = state.btnSorteoDisplay || 'inline-block';
     if (btnLiga) btnLiga.style.display = state.btnLigaDisplay || 'none';
     if (btnPlayoffs) btnPlayoffs.style.display = state.btnPlayoffsDisplay || 'none';
     if (btnBracket) btnBracket.style.display = state.btnBracketDisplay || 'none';
-
-    // Overlay sorteo
-    if (state.sorteoOverlayActive) {
-        sorteoOverlay.classList.add('active');
-        renderSorteoState();
-    } else {
-        sorteoOverlay.classList.remove('active');
-    }
 
     // Botón tabla flotante
     let tf = document.getElementById('btn-tabla-flotante');
@@ -1269,51 +1249,7 @@ function aplicarEstado(state) {
     else if (currentPhase === 'bracket') renderBracket();
 }
 
-// Reproducir visualmente el estado del sorteo (para clientes que se unen tarde)
-function renderSorteoState() {
-    setupSorteoGruposDisplay();
-    for (let j = 0; j < 4; j++) {
-        const col = document.getElementById(`sj-${j}`);
-        if (col) col.innerHTML = `<div class="sj-title">JORNADA ${j + 1}</div>`;
-    }
-    for (let i = 0; i < idx_sorteo; i++) {
-        let j_act = 0, tempAcum = 0;
-        for (let j = 0; j < 4; j++) {
-            if (i < tempAcum + (jornadas[j]?.length || 0)) { j_act = j; break; }
-            tempAcum += (jornadas[j]?.length || 0);
-        }
-        const match = partidos_generados[i];
-        if (!match) continue;
-        const eq1 = getEq(match.t1), eq2 = getEq(match.t2);
-        const sjCol = document.getElementById(`sj-${j_act}`);
-        if (sjCol && eq1 && eq2) {
-            const chip = document.createElement('div');
-            chip.className = 'sj-match visible';
-            chip.innerHTML = `
-                <img src="${eq1.logo}" onerror="this.style.display='none'">
-                <span>${match.t1}</span>
-                <span class="sj-vs">VS</span>
-                <span>${match.t2}</span>
-                <img src="${eq2.logo}" onerror="this.style.display='none'">`;
-            sjCol.appendChild(chip);
-        }
-    }
-    const ball = document.getElementById('sorteo-ball');
-    const infoEl = document.getElementById('sorteo-info');
-    const revealEl = document.getElementById('sorteo-match-reveal');
-    const btnCerrar = document.getElementById('btn-cerrar-sorteo');
-    if (idx_sorteo >= total_sorteo && total_sorteo > 0) {
-        if (ball) { ball.textContent = '✓'; ball.style.cursor = 'default'; ball.onclick = null; }
-        if (infoEl) infoEl.textContent = '¡SORTEO COMPLETADO! ' + total_sorteo + ' PARTIDOS';
-        if (revealEl) revealEl.textContent = '';
-        if (btnCerrar) btnCerrar.style.display = 'block';
-    } else {
-        if (ball) { ball.textContent = '▶'; ball.style.cursor = 'pointer'; ball.onclick = () => sortearSiguiente(ball); }
-        if (infoEl) infoEl.textContent = idx_sorteo === 0 ? 'Pulsa el balón para sortear' : `Partido ${idx_sorteo}/${total_sorteo}`;
-        if (revealEl) revealEl.textContent = '';
-        if (btnCerrar) btnCerrar.style.display = 'none';
-    }
-}
+
 
 // ── Botones del panel ────────────────────────────────────────────
 btnSyncConnect.addEventListener('click', () => {
