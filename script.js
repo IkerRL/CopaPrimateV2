@@ -241,7 +241,7 @@ function initTorneo() {
         resultados[clave(p.t1, p.t2)] = { s1: '', s2: '' };
     });
 
-    // Resultados Jornada 1
+    // Función para añadir resultados
     const setRes = (t1, t2, val1, val2) => {
         const sorted = [t1, t2].sort();
         if (sorted[0] === t1) {
@@ -251,6 +251,37 @@ function initTorneo() {
         }
     };
 
+    // Resultados Jornada 1
+    setRes("Thunder Buddies", "Entry Baiters", 5, 2);
+    setRes("Los Akrtona2", "Dream Team", 5, 0);
+    setRes("Chuu-Chuu 100% MAX", "Makaco Ninja-Pelocho", 4, 5);
+    setRes("REHENKARMACIÓN", "Kizuna", 5, 3);
+    setRes("Sakura", "Soul Resonance", 5, 3);
+    setRes("Stranger Picks", "MARIIKS", 5, 2);
+
+    // Resultados Jornada 2
+    setRes("Thunder Buddies", "Sakura", 1, 5);
+    setRes("Los Akrtona2", "Stranger Picks", 5, 2);
+    setRes("Chuu-Chuu 100% MAX", "Soul Resonance", 5, 2);
+    setRes("REHENKARMACIÓN", "MARIIKS", 5, 3);
+    setRes("Entry Baiters", "Dream Team", 1, 5);
+    setRes("Makaco Ninja-Pelocho", "Kizuna", 2, 5);
+
+    // Resultados Jornada 3
+    setRes("Thunder Buddies", "Los Akrtona2", 5, 4);
+    setRes("Chuu-Chuu 100% MAX", "REHENKARMACIÓN", 5, 3);
+    setRes("Entry Baiters", "Sakura", 4, 5);
+    setRes("Dream Team", "Stranger Picks", 5, 2);
+    setRes("Makaco Ninja-Pelocho", "MARIIKS", 1, 5);
+    setRes("Kizuna", "Soul Resonance", 5, 4);
+
+    // Resultados Jornada 4
+    setRes("Thunder Buddies", "Kizuna", 5, 1);
+    setRes("Los Akrtona2", "Makaco Ninja-Pelocho", 5, 2);
+    setRes("Chuu-Chuu 100% MAX", "Entry Baiters", 2, 5);
+    setRes("REHENKARMACIÓN", "Dream Team", 5, 0);
+    setRes("Sakura", "Stranger Picks", 5, 0);
+    setRes("Soul Resonance", "MARIIKS", 2, 5);
 }
 
 // ----------------------------------------------------------------
