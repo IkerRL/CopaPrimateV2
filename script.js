@@ -711,6 +711,25 @@ function mostrarPlayoffs() {
             { t1: zona[2].eq, t2: zona[5].eq, seed1: 7, seed2: 10, ganador: null, s1: '', s2: '' },
             { t1: zona[3].eq, t2: zona[4].eq, seed1: 8, seed2: 9, ganador: null, s1: '', s2: '' },
         ];
+
+        const resPlayoffs = [
+            { tA: "MARIIKS", sA: 2, tB: "Soul Resonance", sB: 1 },
+            { tA: "Chuu-Chuu 100% MAX", sA: 1, tB: "Makaco Ninja-Pelocho", sB: 2 },
+            { tA: "Kizuna", sA: 2, tB: "Stranger Picks", sB: 1 },
+            { tA: "Dream Team", sA: 0, tB: "Entry Baiters", sB: 2 }
+        ];
+        playoffsData.forEach(match => {
+            const found = resPlayoffs.find(r =>
+                (r.tA === match.t1.nombre && r.tB === match.t2.nombre) ||
+                (r.tA === match.t2.nombre && r.tB === match.t1.nombre)
+            );
+            if (found) {
+                const isT1First = found.tA === match.t1.nombre;
+                match.s1 = isT1First ? found.sA : found.sB;
+                match.s2 = isT1First ? found.sB : found.sA;
+                match.ganador = parseInt(match.s1) > parseInt(match.s2) ? match.t1 : match.t2;
+            }
+        });
     }
 
     const wrapper = document.createElement('div');
@@ -733,26 +752,76 @@ function mostrarPlayoffs() {
             const img2 = pd.t2.logo || '';
             modalCard.innerHTML = `
                 <h2 style="font-family:'BertholdBlock'; text-align:center; color:var(--omen-cyan); margin-bottom:10px">RESULTADO MAPA (BO3)</h2>
+                <div id="match-point-container" style="text-align:center; height:30px; margin-bottom:10px; font-family:'BertholdBlock'; color:var(--omen-gold); font-size:1.5rem; display:none;">MATCH POINT</div>
                 <div class="fila-partido" style="display:flex; align-items:center; justify-content:center; gap:20px; margin:20px 0;">
-                    <div style="text-align:center"><img src="${img1}" style="width:100px; height:100px; object-fit:contain" onerror="this.style.display='none'"><br><span style="font-family:'BertholdBlock';font-size:0.8rem">${pd.t1.nombre}</span></div>
-                    <input type="number" id="sc1" class="input-score" style="width:68px; height:68px; background:#000; color:#fff; border:2px solid var(--omen-purple); text-align:center; border-radius:12px; font-family:'BertholdBlock'; font-size:2.2rem;">
+                    <div style="text-align:center; width:120px;">
+                        <img src="${img1}" style="width:100px; height:100px; object-fit:contain" onerror="this.style.display='none'">
+                        <br><span style="font-family:'BertholdBlock';font-size:0.8rem">${pd.t1.nombre}</span>
+                        <div id="platanos1" style="font-size:1.5rem; margin-top:5px; height:30px;"></div>
+                    </div>
+                    <input type="number" id="sc1" class="input-score" style="width:68px; height:68px; background:#000; color:#fff; border:2px solid var(--omen-purple); text-align:center; border-radius:12px; font-family:'BertholdBlock'; font-size:2.2rem;" value="0" min="0">
                     <span style="font-size:3rem; font-family:'BertholdBlock'; color:var(--omen-purple)">-</span>
-                    <input type="number" id="sc2" class="input-score" style="width:68px; height:68px; background:#000; color:#fff; border:2px solid var(--omen-purple); text-align:center; border-radius:12px; font-family:'BertholdBlock'; font-size:2.2rem;">
-                    <div style="text-align:center"><img src="${img2}" style="width:100px; height:100px; object-fit:contain" onerror="this.style.display='none'"><br><span style="font-family:'BertholdBlock';font-size:0.8rem">${pd.t2.nombre}</span></div>
+                    <input type="number" id="sc2" class="input-score" style="width:68px; height:68px; background:#000; color:#fff; border:2px solid var(--omen-purple); text-align:center; border-radius:12px; font-family:'BertholdBlock'; font-size:2.2rem;" value="0" min="0">
+                    <div style="text-align:center; width:120px;">
+                        <img src="${img2}" style="width:100px; height:100px; object-fit:contain" onerror="this.style.display='none'">
+                        <br><span style="font-family:'BertholdBlock';font-size:0.8rem">${pd.t2.nombre}</span>
+                        <div id="platanos2" style="font-size:1.5rem; margin-top:5px; height:30px;"></div>
+                    </div>
                 </div>
                 <button class="btn-valorant" id="saveM" style="width:100%"><span class="btn-content">CONFIRMAR MAPA</span></button>
             `;
             modal.classList.add("active");
 
-            document.getElementById('saveM').onclick = () => {
-                const limit = 2; // BO3
+            const limit = 2; // BO3
+            const sc1 = document.getElementById('sc1');
+            const sc2 = document.getElementById('sc2');
+            const matchPoint = document.getElementById('match-point-container');
+            const plat1 = document.getElementById('platanos1');
+            const plat2 = document.getElementById('platanos2');
+            
+            const renderScoreState = () => {
                 let v1 = parseInt(pd.s1) || 0;
                 let v2 = parseInt(pd.s2) || 0;
+                let s1 = parseInt(sc1.value) || 0;
+                let s2 = parseInt(sc2.value) || 0;
+                
+                if (s1 === 14) {
+                    s1 = 0; sc1.value = 0;
+                    if (v1 < limit) { v1++; pd.s1 = v1.toString(); }
+                    renderPlayoffMatch(el, pd);
+                    broadcastState();
+                }
+                if (s2 === 14) {
+                    s2 = 0; sc2.value = 0;
+                    if (v2 < limit) { v2++; pd.s2 = v2.toString(); }
+                    renderPlayoffMatch(el, pd);
+                    broadcastState();
+                }
 
+                let visualV1 = v1 + (s1 >= 13 ? 1 : 0);
+                let visualV2 = v2 + (s2 >= 13 ? 1 : 0);
+                
+                plat1.innerHTML = '🍌'.repeat(visualV1);
+                plat2.innerHTML = '🍌'.repeat(visualV2);
+
+                if (s1 >= 12 && s1 < 13 || s2 >= 12 && s2 < 13) {
+                    matchPoint.style.display = 'block';
+                } else {
+                    matchPoint.style.display = 'none';
+                }
+            };
+
+            sc1.addEventListener('input', renderScoreState);
+            sc2.addEventListener('input', renderScoreState);
+            renderScoreState();
+
+            document.getElementById('saveM').onclick = () => {
+                let v1 = parseInt(pd.s1) || 0;
+                let v2 = parseInt(pd.s2) || 0;
                 if (v1 >= limit || v2 >= limit) { modal.classList.remove("active"); return; }
-                const s1 = parseInt(document.getElementById('sc1').value) || 0;
-                const s2 = parseInt(document.getElementById('sc2').value) || 0;
-                if (s1 === s2) return;
+                
+                const s1 = parseInt(sc1.value) || 0;
+                const s2 = parseInt(sc2.value) || 0;
 
                 if (s1 > s2 && v1 < limit) { v1++; pd.s1 = v1.toString(); }
                 else if (s2 > s1 && v2 < limit) { v2++; pd.s2 = v2.toString(); }
@@ -852,6 +921,36 @@ function iniciarBracket() {
     if (!bracketData) {
         const ranking = getRanking();
         const top4 = ranking.slice(0, 4).map(r => r.eq);
+
+        // Asegurar que los datos de los playoffs están inicializados si aún no lo están
+        if (!playoffsData || playoffsData.length === 0) {
+            const zona = ranking.slice(4, 12);
+            playoffsData = [
+                { t1: zona[0].eq, t2: zona[7].eq, seed1: 5, seed2: 12, ganador: null, s1: '', s2: '' },
+                { t1: zona[1].eq, t2: zona[6].eq, seed1: 6, seed2: 11, ganador: null, s1: '', s2: '' },
+                { t1: zona[2].eq, t2: zona[5].eq, seed1: 7, seed2: 10, ganador: null, s1: '', s2: '' },
+                { t1: zona[3].eq, t2: zona[4].eq, seed1: 8, seed2: 9, ganador: null, s1: '', s2: '' },
+            ];
+            const resPlayoffs = [
+                { tA: "MARIIKS", sA: 2, tB: "Soul Resonance", sB: 1 },
+                { tA: "Chuu-Chuu 100% MAX", sA: 1, tB: "Makaco Ninja-Pelocho", sB: 2 },
+                { tA: "Kizuna", sA: 2, tB: "Stranger Picks", sB: 1 },
+                { tA: "Dream Team", sA: 0, tB: "Entry Baiters", sB: 2 }
+            ];
+            playoffsData.forEach(match => {
+                const found = resPlayoffs.find(r =>
+                    (r.tA === match.t1.nombre && r.tB === match.t2.nombre) ||
+                    (r.tA === match.t2.nombre && r.tB === match.t1.nombre)
+                );
+                if (found) {
+                    const isT1First = found.tA === match.t1.nombre;
+                    match.s1 = isT1First ? found.sA : found.sB;
+                    match.s2 = isT1First ? found.sB : found.sA;
+                    match.ganador = parseInt(match.s1) > parseInt(match.s2) ? match.t1 : match.t2;
+                }
+            });
+        }
+
         const gpWinners = playoffsData.map(pd => pd.ganador || { nombre: 'TBD', logo: '' });
 
         bracketData = {
@@ -869,6 +968,37 @@ function iniciarBracket() {
                 { id: 'fn0', t1: { nombre: 'TBD', logo: '' }, t2: { nombre: 'TBD', logo: '' }, s1: '', s2: '', ganador: null },
             ]
         };
+
+        const resCuartos = [
+            { tA: "Sakura", sA: 2, tB: "Entry Baiters", sB: 0 },
+            { tA: "Los Akrtona2", sA: 2, tB: "Kizuna", sB: 0 },
+            { tA: "REHENKARMACIÓN", sA: 2, tB: "Makaco Ninja-Pelocho", sB: 1 },
+            { tA: "Thunder Buddies", sA: 2, tB: "MARIIKS", sB: 1 }
+        ];
+
+        bracketData.qf.forEach(match => {
+            if (!match.t1 || !match.t2 || match.t1.nombre === 'TBD' || match.t2.nombre === 'TBD') return;
+            const found = resCuartos.find(r =>
+                (r.tA === match.t1.nombre && r.tB === match.t2.nombre) ||
+                (r.tA === match.t2.nombre && r.tB === match.t1.nombre)
+            );
+            if (found) {
+                const isT1First = found.tA === match.t1.nombre;
+                match.s1 = isT1First ? found.sA : found.sB;
+                match.s2 = isT1First ? found.sB : found.sA;
+                match.ganador = parseInt(match.s1) > parseInt(match.s2) ? match.t1 : match.t2;
+            }
+        });
+
+        // Propagar ganadores a Semifinales
+        if (bracketData.qf[0].ganador && bracketData.qf[1].ganador) {
+            bracketData.sf[0].t1 = bracketData.qf[0].ganador;
+            bracketData.sf[0].t2 = bracketData.qf[1].ganador;
+        }
+        if (bracketData.qf[2].ganador && bracketData.qf[3].ganador) {
+            bracketData.sf[1].t1 = bracketData.qf[2].ganador;
+            bracketData.sf[1].t2 = bracketData.qf[3].ganador;
+        }
     }
     renderBracket();
 }
@@ -1311,26 +1441,74 @@ function bindMatchBoxClick(box, p, fase, idx) {
         const img2 = p.t2.logo || '';
         modalCard.innerHTML = `
             <h2 style="font-family:'BertholdBlock'; text-align:center; color:var(--omen-cyan); margin-bottom:10px">RESULTADO MAPA</h2>
+            <div id="match-point-container" style="text-align:center; height:30px; margin-bottom:10px; font-family:'BertholdBlock'; color:var(--omen-gold); font-size:1.5rem; display:none;">MATCH POINT</div>
             <div class="fila-partido" style="display:flex; align-items:center; justify-content:center; gap:20px; margin:20px 0;">
-                <img src="${img1}" style="width:140px; height:140px; object-fit:contain" onerror="this.style.display='none'">
-                <input type="number" id="sc1" class="input-score" style="width:68px; height:68px; background:#000; color:#fff; border:2px solid var(--omen-purple); text-align:center; border-radius:12px; font-family:'BertholdBlock'; font-size:2.2rem;">
+                <div style="text-align:center; width:140px;">
+                    <img src="${img1}" style="width:140px; height:140px; object-fit:contain" onerror="this.style.display='none'">
+                    <div id="platanos1" style="font-size:2rem; margin-top:5px; height:40px;"></div>
+                </div>
+                <input type="number" id="sc1" class="input-score" style="width:68px; height:68px; background:#000; color:#fff; border:2px solid var(--omen-purple); text-align:center; border-radius:12px; font-family:'BertholdBlock'; font-size:2.2rem;" value="0" min="0">
                 <span style="font-size:3rem; font-family:'BertholdBlock'; color:var(--omen-purple)">-</span>
-                <input type="number" id="sc2" class="input-score" style="width:68px; height:68px; background:#000; color:#fff; border:2px solid var(--omen-purple); text-align:center; border-radius:12px; font-family:'BertholdBlock'; font-size:2.2rem;">
-                <img src="${img2}" style="width:140px; height:140px; object-fit:contain" onerror="this.style.display='none'">
+                <input type="number" id="sc2" class="input-score" style="width:68px; height:68px; background:#000; color:#fff; border:2px solid var(--omen-purple); text-align:center; border-radius:12px; font-family:'BertholdBlock'; font-size:2.2rem;" value="0" min="0">
+                <div style="text-align:center; width:140px;">
+                    <img src="${img2}" style="width:140px; height:140px; object-fit:contain" onerror="this.style.display='none'">
+                    <div id="platanos2" style="font-size:2rem; margin-top:5px; height:40px;"></div>
+                </div>
             </div>
             <button class="btn-valorant" id="saveM" style="width:100%"><span class="btn-content">CONFIRMAR MAPA</span></button>
         `;
         modal.classList.add("active");
 
+        const limit = (fase === 'fn') ? 3 : 2;
+        const sc1 = document.getElementById('sc1');
+        const sc2 = document.getElementById('sc2');
+        const matchPoint = document.getElementById('match-point-container');
+        const plat1 = document.getElementById('platanos1');
+        const plat2 = document.getElementById('platanos2');
+        
+        const renderScoreState = () => {
+            let v1 = parseInt(p.s1) || 0;
+            let v2 = parseInt(p.s2) || 0;
+            let s1 = parseInt(sc1.value) || 0;
+            let s2 = parseInt(sc2.value) || 0;
+            
+            if (s1 === 14) {
+                s1 = 0; sc1.value = 0;
+                if (v1 < limit) { v1++; p.s1 = v1.toString(); }
+                renderMatchBox(box, p, fase);
+                broadcastState();
+            }
+            if (s2 === 14) {
+                s2 = 0; sc2.value = 0;
+                if (v2 < limit) { v2++; p.s2 = v2.toString(); }
+                renderMatchBox(box, p, fase);
+                broadcastState();
+            }
+
+            let visualV1 = v1 + (s1 >= 13 ? 1 : 0);
+            let visualV2 = v2 + (s2 >= 13 ? 1 : 0);
+            
+            plat1.innerHTML = '🍌'.repeat(visualV1);
+            plat2.innerHTML = '🍌'.repeat(visualV2);
+
+            if (s1 >= 12 && s1 < 13 || s2 >= 12 && s2 < 13) {
+                matchPoint.style.display = 'block';
+            } else {
+                matchPoint.style.display = 'none';
+            }
+        };
+
+        sc1.addEventListener('input', renderScoreState);
+        sc2.addEventListener('input', renderScoreState);
+        renderScoreState();
+
         document.getElementById('saveM').onclick = () => {
-            const limit = (fase === 'fn') ? 3 : 2;
             let v1 = parseInt(p.s1) || 0;
             let v2 = parseInt(p.s2) || 0;
 
             if (v1 >= limit || v2 >= limit) { modal.classList.remove("active"); return; }
-            const s1 = parseInt(document.getElementById('sc1').value) || 0;
-            const s2 = parseInt(document.getElementById('sc2').value) || 0;
-            if (s1 === s2) return;
+            const s1 = parseInt(sc1.value) || 0;
+            const s2 = parseInt(sc2.value) || 0;
 
             if (s1 > s2 && v1 < limit) { v1++; p.s1 = v1.toString(); }
             else if (s2 > s1 && v2 < limit) { v2++; p.s2 = v2.toString(); }
