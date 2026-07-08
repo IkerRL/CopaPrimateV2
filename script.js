@@ -778,13 +778,13 @@ function mostrarPlayoffs() {
             const matchPoint = document.getElementById('match-point-container');
             const plat1 = document.getElementById('platanos1');
             const plat2 = document.getElementById('platanos2');
-            
+
             const renderScoreState = () => {
                 let v1 = parseInt(pd.s1) || 0;
                 let v2 = parseInt(pd.s2) || 0;
                 let s1 = parseInt(sc1.value) || 0;
                 let s2 = parseInt(sc2.value) || 0;
-                
+
                 if (s1 === 14) {
                     s1 = 0; sc1.value = 0;
                     if (v1 < limit) { v1++; pd.s1 = v1.toString(); }
@@ -800,7 +800,7 @@ function mostrarPlayoffs() {
 
                 let visualV1 = v1 + (s1 >= 13 ? 1 : 0);
                 let visualV2 = v2 + (s2 >= 13 ? 1 : 0);
-                
+
                 plat1.innerHTML = '🍌'.repeat(visualV1);
                 plat2.innerHTML = '🍌'.repeat(visualV2);
 
@@ -819,7 +819,7 @@ function mostrarPlayoffs() {
                 let v1 = parseInt(pd.s1) || 0;
                 let v2 = parseInt(pd.s2) || 0;
                 if (v1 >= limit || v2 >= limit) { modal.classList.remove("active"); return; }
-                
+
                 const s1 = parseInt(sc1.value) || 0;
                 const s2 = parseInt(sc2.value) || 0;
 
@@ -998,6 +998,31 @@ function iniciarBracket() {
         if (bracketData.qf[2].ganador && bracketData.qf[3].ganador) {
             bracketData.sf[1].t1 = bracketData.qf[2].ganador;
             bracketData.sf[1].t2 = bracketData.qf[3].ganador;
+        }
+
+        const resSemis = [
+            { tA: "Los Akrtona2", sA: 2, tB: "Sakura", sB: 1 },
+            { tA: "REHENKARMACIÓN", sA: 2, tB: "Thunder Buddies", sB: 1 }
+        ];
+
+        bracketData.sf.forEach(match => {
+            if (!match.t1 || !match.t2 || match.t1.nombre === 'TBD' || match.t2.nombre === 'TBD') return;
+            const found = resSemis.find(r =>
+                (r.tA === match.t1.nombre && r.tB === match.t2.nombre) ||
+                (r.tA === match.t2.nombre && r.tB === match.t1.nombre)
+            );
+            if (found) {
+                const isT1First = found.tA === match.t1.nombre;
+                match.s1 = isT1First ? found.sA : found.sB;
+                match.s2 = isT1First ? found.sB : found.sA;
+                match.ganador = parseInt(match.s1) > parseInt(match.s2) ? match.t1 : match.t2;
+            }
+        });
+
+        // Propagar ganadores a Final
+        if (bracketData.sf[0].ganador && bracketData.sf[1].ganador) {
+            bracketData.fn[0].t1 = bracketData.sf[0].ganador;
+            bracketData.fn[0].t2 = bracketData.sf[1].ganador;
         }
     }
     renderBracket();
@@ -1465,13 +1490,13 @@ function bindMatchBoxClick(box, p, fase, idx) {
         const matchPoint = document.getElementById('match-point-container');
         const plat1 = document.getElementById('platanos1');
         const plat2 = document.getElementById('platanos2');
-        
+
         const renderScoreState = () => {
             let v1 = parseInt(p.s1) || 0;
             let v2 = parseInt(p.s2) || 0;
             let s1 = parseInt(sc1.value) || 0;
             let s2 = parseInt(sc2.value) || 0;
-            
+
             if (s1 === 14) {
                 s1 = 0; sc1.value = 0;
                 if (v1 < limit) { v1++; p.s1 = v1.toString(); }
@@ -1487,7 +1512,7 @@ function bindMatchBoxClick(box, p, fase, idx) {
 
             let visualV1 = v1 + (s1 >= 13 ? 1 : 0);
             let visualV2 = v2 + (s2 >= 13 ? 1 : 0);
-            
+
             plat1.innerHTML = '🍌'.repeat(visualV1);
             plat2.innerHTML = '🍌'.repeat(visualV2);
 
@@ -1612,13 +1637,70 @@ function mostrarCampeon(nombre, logo) {
         <h1 class="champion-title">¡CAMPEÓN VOL. II!</h1>
         <img src="${logo}" class="champion-logo" onerror="this.style.display='none'">
         <h2 class="champion-name">${nombre}</h2>
-        <button class="btn-valorant" onclick="location.reload()" style="margin-top:50px">
-            <span class="btn-content">FINALIZAR TORNEO</span>
-        </button>`;
+        <div class="mystery-question" onclick="handleMysteryClick()">?</div>`;
     document.body.appendChild(ov);
     if (audioChamp) { audioChamp.currentTime = 0; audioChamp.play(); }
     setTimeout(() => ov.classList.add('active'), 100);
 }
+
+function handleMysteryClick() {
+    // Parar todos los audios
+    document.querySelectorAll('audio').forEach(a => {
+        a.pause();
+        a.currentTime = 0;
+    });
+
+    const mainContent = document.querySelector('.main-content');
+    if (mainContent) {
+        mainContent.innerHTML = `
+            <div class="secret-lock-container">
+                <div class="lock-icon" onclick="unlockSecret(this)">🔒</div>
+            </div>
+        `;
+    }
+
+    const champOv = document.querySelector('.champion-overlay');
+    if (champOv) {
+        champOv.style.transition = 'opacity 1s ease-in-out';
+        champOv.style.opacity = '0';
+        setTimeout(() => {
+            champOv.remove();
+        }, 1000);
+    }
+}
+
+function unlockSecret(el) {
+    el.style.pointerEvents = 'none';
+    el.classList.add('unlocked');
+    
+    const audio = new Audio('teaser.mp3');
+    audio.play();
+
+    setTimeout(() => {
+        el.innerHTML = '';
+        el.classList.remove('unlocked');
+    }, 500);
+
+    audio.onended = () => {
+        el.innerHTML = '<img src="Palabra.png" alt="Palabra" style="opacity: 0; transition: opacity 2s ease-in-out;">';
+        el.classList.add('palabra');
+        
+        setTimeout(() => {
+            const img = el.querySelector('img');
+            if (img) img.style.opacity = '1';
+        }, 50);
+    };
+}
+
+const champOv = document.querySelector('.champion-overlay');
+if (champOv) {
+    champOv.style.transition = 'opacity 1s ease-in-out';
+    champOv.style.opacity = '0';
+    setTimeout(() => {
+        champOv.remove();
+    }, 1000);
+}
+
 
 function shuffle(arr) {
     for (let i = arr.length - 1; i > 0; i--) {
